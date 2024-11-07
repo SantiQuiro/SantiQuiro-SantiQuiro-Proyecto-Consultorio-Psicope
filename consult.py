@@ -4,6 +4,42 @@ import pathlib
 from datetime import datetime
 import pandas as pd
 
+def obtener_estadisticas_sesiones(paciente_id):
+    """
+    Obtiene estadísticas de sesiones para un paciente específico
+    """
+    cursor.execute('''
+    SELECT 
+        COUNT(*) as total_sesiones,
+        SUM(CASE WHEN pago = 1 THEN 1 ELSE 0 END) as sesiones_pagadas,
+        SUM(CASE WHEN asistio = 1 THEN 1 ELSE 0 END) as sesiones_asistidas,
+        SUM(CASE WHEN pago = 0 THEN monto ELSE 0 END) as deuda_total
+    FROM sesiones 
+    WHERE paciente_id = ?
+    ''', (paciente_id,))
+    
+    result = cursor.fetchone()
+    return {
+        'total_sesiones': result[0],
+        'sesiones_pagadas': result[1] or 0,
+        'sesiones_asistidas': result[2] or 0,
+        'deuda_total': result[3] or 0
+    }
+
+def obtener_ultima_sesion(paciente_id):
+    """
+    Obtiene la fecha de la última sesión del paciente
+    """
+    cursor.execute('''
+    SELECT fecha 
+    FROM sesiones 
+    WHERE paciente_id = ? 
+    ORDER BY fecha DESC 
+    LIMIT 1
+    ''', (paciente_id,))
+    
+    result = cursor.fetchone()
+    return result[0] if result else None
 
 def obtener_pacientes_df():
     """Obtiene todos los pacientes y los devuelve como un DataFrame"""
@@ -76,6 +112,9 @@ CREATE TABLE IF NOT EXISTS sesiones (
     paciente_id INTEGER,
     fecha TEXT,
     notas TEXT,
+    asistio BOOLEAN,
+    pago BOOLEAN,
+    monto REAL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 )
 ''')
@@ -102,13 +141,19 @@ def eliminar_paciente(paciente_id):
     cursor.execute('DELETE FROM sesiones WHERE paciente_id = ?', (paciente_id,))  # Elimina las sesiones relacionadas
     conn.commit()
 
-def agregar_sesion(paciente_id, fecha, notas):
-    cursor.execute('INSERT INTO sesiones (paciente_id, fecha, notas) VALUES (?, ?, ?)',
-                   (paciente_id, fecha, notas))
+def agregar_sesion(paciente_id, fecha, notas, asistio, pago, monto):
+    cursor.execute('''
+    INSERT INTO sesiones (paciente_id, fecha, notas, asistio, pago, monto) 
+    VALUES (?, ?, ?, ?, ?, ?)
+    ''', (paciente_id, fecha, notas, asistio, pago, monto))
     conn.commit()
 
 def obtener_sesiones(paciente_id):
-    cursor.execute('SELECT * FROM sesiones WHERE paciente_id = ?', (paciente_id,))
+    cursor.execute('''
+    SELECT id, paciente_id, fecha, notas, asistio, pago, monto 
+    FROM sesiones 
+    WHERE paciente_id = ?
+    ''', (paciente_id,))
     return cursor.fetchall()
 
 def eliminar_sesion(sesion_id):
@@ -164,7 +209,7 @@ elif menu == "Lista de Pacientes":
     with col2:
         sort_by = st.selectbox("Ordenar por:", ["Apellido", "Nombre", "Edad", "Fecha de Nacimiento"])
     
-    # Filtrar y ordenar pacientes [código existente sin cambios]
+    # Filtrar y ordenar pacientes 
     if search_term:
         mask = (
             df_pacientes['nombre'].str.contains(search_term, case=False, na=False) |
@@ -198,50 +243,69 @@ elif menu == "Lista de Pacientes":
             'Tel. Madre': df_filtrado['telefono_madre']
         })
 
+
         st.dataframe(tabla_resumen, use_container_width=True)
 
         # Lista de pacientes con detalles expandibles
         for _, paciente in df_filtrado.iterrows():
-            with st.expander(f"📋 Detalles de {paciente['nombre']} {paciente['apellido']}"):
-                # Información del paciente [código existente]
+            # Obtener estadísticas de sesiones
+            stats = obtener_estadisticas_sesiones(paciente['id'])
+            ultima_sesion = obtener_ultima_sesion(paciente['id'])
+            
+            with st.expander(f"📋 {paciente['nombre']} {paciente['apellido']} - DNI: {paciente['dni']}"):
+                # Primera fila: Información general y estadísticas
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.markdown("**Información Personal**")
-                    st.write(f"DNI: {paciente['dni']}")
                     st.write(f"Fecha Nac.: {paciente['fecha_nacimiento']}")
                     st.write(f"Edad: {paciente['edad']} años")
                     st.write(f"Domicilio: {paciente['domicilio']}")
-
+                
                 with col2:
                     st.markdown("**Información de Contacto**")
                     st.write(f"Padre/Tutor: {paciente['nombre_padre']}")
                     st.write(f"Tel. Padre: {paciente['telefono_padre']}")
                     st.write(f"Madre/Tutora: {paciente['nombre_madre']}")
                     st.write(f"Tel. Madre: {paciente['telefono_madre']}")
-                    if paciente['nombre_familiar']:
-                        st.write(f"Otro Familiar: {paciente['nombre_familiar']}")
-                        st.write(f"Tel. Familiar: {paciente['telefono_familiar']}")
-
+                
                 with col3:
-                    st.markdown("**Información Clínica**")
-                    st.write("Motivo de Consulta:")
-                    st.text_area("", paciente['motivo_consulta'], height=100, key=f"motivo_{paciente['id']}", disabled=True)
-                    st.write("Datos Escolares:")
-                    st.text_area("", paciente['datos_escolares'], height=100, key=f"escolar_{paciente['id']}", disabled=True)
+                    st.markdown("**Estadísticas de Sesiones**")
+                    st.write(f"Total Sesiones: {stats['total_sesiones']}")
+                    st.write(f"✅ Sesiones Asistidas: {stats['sesiones_asistidas']}")
+                    st.write(f"💰 Sesiones Pagadas: {stats['sesiones_pagadas']}")
+                    if stats['deuda_total'] > 0:
+                        st.error(f"💸 Deuda Total: ${stats['deuda_total']:.2f}")
+                    else:
+                        st.success("✨ Sin deuda pendiente")
+                    if ultima_sesion:
+                        st.write(f"Última sesión: {ultima_sesion}")
+
+                # Segunda fila: Detalles clínicos
+                st.markdown("---")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Motivo de Consulta:**")
+                    st.text_area("", paciente['motivo_consulta'], height=100, 
+                               key=f"motivo_{paciente['id']}", disabled=True)
+                
+                with col2:
+                    st.markdown("**Datos Escolares:**")
+                    st.text_area("", paciente['datos_escolares'], height=100, 
+                               key=f"escolar_{paciente['id']}", disabled=True)
 
                 # Botones de acción
+                st.markdown("---")
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     if st.button("✏️ Editar", key=f"edit_{paciente['id']}"):
                         st.session_state.editing = paciente['id']
-                
                 with col2:
                     if st.button("🗑️ Eliminar", key=f"delete_{paciente['id']}"):
                         eliminar_paciente(paciente['id'])
                         st.success("Paciente eliminado correctamente")
                         st.rerun()
-                
                 with col3:
                     if st.button("📝 Sesiones", key=f"sessions_{paciente['id']}"):
                         st.session_state.viewing_sessions = paciente['id']
@@ -333,12 +397,49 @@ elif menu == "Registrar Sesión":
     if pacientes:
         paciente_seleccionado = st.selectbox("Seleccione un paciente", [f"{p[1]} {p[2]}" for p in pacientes])
         paciente_id = [p[0] for p in pacientes if f"{p[1]} {p[2]}" == paciente_seleccionado][0]
-        fecha = st.date_input("Fecha de la sesión", datetime.now())
+        
+        # Crear columnas para organizar mejor la interfaz
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fecha = st.date_input("Fecha de la sesión", datetime.now())
+            asistio = st.checkbox("¿El paciente asistió a la sesión?", value=True)
+            pago = st.checkbox("¿El paciente pagó la sesión?", value=False)
+        
+        with col2:
+            monto = st.number_input("Monto de la sesión ($)", min_value=0.0, step=100.0)
+        
         notas = st.text_area("Notas de la sesión")
 
         if st.button("Guardar Sesión"):
-            agregar_sesion(paciente_id, fecha, notas)
+            agregar_sesion(paciente_id, fecha, notas, asistio, pago, monto)
             st.success("Sesión registrada correctamente")
+
+        # Mostrar historial de sesiones
+        st.header("Historial de sesiones del paciente")
+        sesiones = obtener_sesiones(paciente_id)
+        
+        if sesiones:
+            for sesion in sesiones:
+                with st.expander(f"Sesión del {sesion[2]}"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write("**Estado de la sesión:**")
+                        st.write(f"✓ Asistió: {'Sí' if sesion[4] else 'No'}")
+                        st.write(f"💰 Pagó: {'Sí' if sesion[5] else 'No'}")
+                        st.write(f"💵 Monto: ${sesion[6]}")
+                    
+                    with col2:
+                        st.write("**Notas:**")
+                        st.text_area("", sesion[3], height=100, key=f"notas_sesion_{sesion[0]}", disabled=True)
+                    
+                    if st.button("🗑️ Eliminar", key=f"del_session_{sesion[0]}"):
+                        eliminar_sesion(sesion[0])
+                        st.success("Sesión eliminada correctamente")
+                        st.rerun()
+        else:
+            st.info("No hay sesiones registradas para este paciente")
 
     else:
         st.warning("No hay pacientes registrados. Registre al menos un paciente antes de registrar una sesión.")
