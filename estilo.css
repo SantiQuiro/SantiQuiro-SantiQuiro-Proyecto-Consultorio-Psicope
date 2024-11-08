@@ -4,3 +4,12 @@ color: aqua;
 .st-key-o p{
     color: blueviolet;
 }
+.calendario tbody tr th{
+    background-color: cadetblue;
+    color: white;
+
+}
+.calendario tbody td .turno{
+    background-color: green;
+    color: white;
+}
