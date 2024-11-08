@@ -521,7 +521,6 @@ elif menu == "Registrar Sesión":
         st.warning("No hay pacientes registrados. Registre al menos un paciente antes de registrar una sesión.")
 
 
-
                                             ### TURNOS ###
 elif menu == "Gestión de Turnos":
     st.title("Gestión de Turnos")
@@ -649,7 +648,7 @@ elif menu == "Gestión de Turnos":
                 hora_actual = hora_actual + timedelta(minutes=40)
             
             hora = st.selectbox("Hora", horarios)
-        
+
         if 'turno_registrado' not in st.session_state:
             st.session_state.turno_registrado = False
         
