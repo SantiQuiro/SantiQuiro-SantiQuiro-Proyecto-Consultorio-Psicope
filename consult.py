@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS sesiones (
     asistio BOOLEAN,
     pago BOOLEAN,
     monto REAL,
+    numero_factura TEXT,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 )
 ''')
@@ -152,21 +153,21 @@ def eliminar_paciente(paciente_id):
     cursor.execute('DELETE FROM sesiones WHERE paciente_id = ?', (paciente_id,))  # Elimina las sesiones relacionadas
     conn.commit()
 
-def agregar_sesion(paciente_id, fecha, notas, asistio, pago, monto):
+def agregar_sesion(paciente_id, fecha, notas, asistio, pago, monto, numero_factura):
     cursor.execute('''
-    INSERT INTO sesiones (paciente_id, fecha, notas, asistio, pago, monto) 
-    VALUES (?, ?, ?, ?, ?, ?)
-    ''', (paciente_id, fecha, notas, asistio, pago, monto))
+    INSERT INTO sesiones (paciente_id, fecha, notas, asistio, pago, monto, numero_factura) 
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (paciente_id, fecha, notas, asistio, pago, monto, numero_factura))
     conn.commit()
 
 def obtener_sesiones(paciente_id):
     cursor.execute('''
-    SELECT id, paciente_id, fecha, notas, asistio, pago, monto 
+    SELECT id, paciente_id, fecha, notas, asistio, pago, monto, numero_factura 
     FROM sesiones 
     WHERE paciente_id = ?
+    ORDER BY fecha DESC
     ''', (paciente_id,))
     return cursor.fetchall()
-
 def eliminar_sesion(sesion_id):
     cursor.execute('DELETE FROM sesiones WHERE id = ?', (sesion_id,))
     conn.commit()
@@ -429,7 +430,6 @@ elif menu == "Lista de Pacientes":
                     sesiones = obtener_sesiones(paciente['id'])
                     
                     if sesiones:
-                        # Crear un contenedor con borde para las sesiones
                         st.markdown("""
                         <style>
                         .session-container {
@@ -442,16 +442,25 @@ elif menu == "Lista de Pacientes":
                         """, unsafe_allow_html=True)
                         
                         for sesion in sesiones:
+                            # Desempaquetar los valores de la sesión
+                            sesion_id, _, fecha, notas, asistio, pago, monto, numero_factura = sesion
+                            
                             st.markdown(f'<div class="session-container">', unsafe_allow_html=True)
                             col1, col2 = st.columns([5, 1])
                             with col1:
                                 st.markdown("**Fecha:**")
-                                st.write(sesion[2])
+                                st.write(fecha)
+                                if numero_factura:  # Número de factura
+                                    st.write(f"**Factura N°:** {numero_factura}")
+                                st.markdown("**Estado:**")
+                                st.write(f"✓ Asistió: {'Sí' if asistio else 'No'}")
+                                st.write(f"💰 Pagó: {'Sí' if pago else 'No'}")
+                                st.write(f"💵 Monto: ${monto}")
                                 st.markdown("**Notas:**")
-                                st.text_area("", sesion[3], height=150, key=f"notas_sesion_{sesion[0]}", disabled=True)
+                                st.text_area("", notas, height=150, key=f"notas_sesion_{sesion_id}", disabled=True)
                             with col2:
-                                if st.button("🗑️", key=f"del_session_{sesion[0]}"):
-                                    eliminar_sesion(sesion[0])
+                                if st.button("🗑️", key=f"del_session_{sesion_id}"):
+                                    eliminar_sesion(sesion_id)
                                     st.success("Sesión eliminada correctamente")
                                     st.rerun()
                             st.markdown('</div>', unsafe_allow_html=True)
@@ -484,11 +493,12 @@ elif menu == "Registrar Sesión":
         
         with col2:
             monto = st.number_input("Monto de la sesión ($)", min_value=0.0, step=100.0)
+            numero_factura = st.text_input("Número de Factura")
         
         notas = st.text_area("Notas de la sesión")
 
         if st.button("Guardar Sesión"):
-            agregar_sesion(paciente_id, fecha, notas, asistio, pago, monto)
+            agregar_sesion(paciente_id, fecha, notas, asistio, pago, monto, numero_factura)
             st.success("Sesión registrada correctamente")
 
         # Mostrar historial de sesiones
@@ -497,28 +507,30 @@ elif menu == "Registrar Sesión":
         
         if sesiones:
             for sesion in sesiones:
-                with st.expander(f"Sesión del {sesion[2]}"):
+                # Desempaquetar los valores de la sesión
+                sesion_id, _, fecha, notas, asistio, pago, monto, numero_factura = sesion
+                
+                with st.expander(f"Sesión del {fecha}"):
                     col1, col2 = st.columns(2)
                     
                     with col1:
                         st.write("**Estado de la sesión:**")
-                        st.write(f"✓ Asistió: {'Sí' if sesion[4] else 'No'}")
-                        st.write(f"💰 Pagó: {'Sí' if sesion[5] else 'No'}")
-                        st.write(f"💵 Monto: ${sesion[6]}")
+                        st.write(f"✓ Asistió: {'Sí' if asistio else 'No'}")
+                        st.write(f"💰 Pagó: {'Sí' if pago else 'No'}")
+                        st.write(f"💵 Monto: ${monto}")
+                        if numero_factura:  # Número de factura
+                            st.write(f"📄 Factura N°: {numero_factura}")
                     
                     with col2:
                         st.write("**Notas:**")
-                        st.text_area("", sesion[3], height=100, key=f"notas_sesion_{sesion[0]}", disabled=True)
+                        st.text_area("", notas, height=100, key=f"notas_sesion_{sesion_id}", disabled=True)
                     
-                    if st.button("🗑️ Eliminar", key=f"del_session_{sesion[0]}"):
-                        eliminar_sesion(sesion[0])
+                    if st.button("🗑️ Eliminar", key=f"del_session_{sesion_id}"):
+                        eliminar_sesion(sesion_id)
                         st.success("Sesión eliminada correctamente")
                         st.rerun()
         else:
             st.info("No hay sesiones registradas para este paciente")
-
-    else:
-        st.warning("No hay pacientes registrados. Registre al menos un paciente antes de registrar una sesión.")
 
 
                                             ### TURNOS ###
