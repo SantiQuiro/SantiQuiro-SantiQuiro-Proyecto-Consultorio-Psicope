@@ -1,8 +1,17 @@
 import streamlit as st
 import sqlite3
 import pathlib
-from datetime import datetime
+from datetime import datetime,timedelta
 import pandas as pd
+
+# Función para cargar CSS
+def load_css(file_path):
+    with open(file_path) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# Cargar CSS si es necesario
+css_path = pathlib.Path("estilo.css")
+load_css(css_path)
 
 def obtener_estadisticas_sesiones(paciente_id):
     """
@@ -73,14 +82,6 @@ def calcular_edad(fecha_nacimiento):
         return None
     
 
-# Función para cargar CSS
-def load_css(file_path):
-    with open(file_path) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-# Cargar CSS si es necesario
-css_path = pathlib.Path("estilo.css")
-load_css(css_path)
 
 # Conexión a la base de datos SQLite
 conn = sqlite3.connect('consultorio.db')
@@ -116,6 +117,16 @@ CREATE TABLE IF NOT EXISTS sesiones (
     pago BOOLEAN,
     monto REAL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+)
+''')
+conn.commit()
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS turnos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    fecha DATE NOT NULL,
+    hora TIME NOT NULL
 )
 ''')
 conn.commit()
@@ -160,10 +171,73 @@ def eliminar_sesion(sesion_id):
     cursor.execute('DELETE FROM sesiones WHERE id = ?', (sesion_id,))
     conn.commit()
 
+def agregar_turno(nombre, fecha, hora):
+    cursor.execute('''
+    INSERT INTO turnos (nombre, fecha, hora)
+    VALUES (?, ?, ?)
+    ''', (nombre, fecha, hora))
+    conn.commit()
+
+def obtener_turnos_dia(fecha):
+    cursor.execute('''
+    SELECT id, nombre, fecha, hora
+    FROM turnos
+    WHERE fecha = ?
+    ORDER BY hora
+    ''', (fecha,))
+    return cursor.fetchall()
+
+def obtener_turnos_mes(año, mes):
+    cursor.execute('''
+    SELECT id, nombre, fecha, hora
+    FROM turnos
+    WHERE strftime('%Y', fecha) = ? AND strftime('%m', fecha) = ?
+    ORDER BY fecha, hora
+    ''', (str(año), str(mes).zfill(2)))
+    return cursor.fetchall()
+
+def verificar_disponibilidad(fecha, hora_consulta):
+    """
+    Verifica si hay disponibilidad para un turno en la fecha y hora especificadas
+    """
+    # Convertir la hora de consulta a minutos desde medianoche para facilitar comparación
+    hora_inicio_mins = int(hora_consulta.split(':')[0]) * 60 + int(hora_consulta.split(':')[1])
+    hora_fin_mins = hora_inicio_mins + 40  # 40 minutos de duración
+    
+    # Obtener todos los turnos para esa fecha
+    cursor.execute('''
+    SELECT hora FROM turnos
+    WHERE fecha = ?
+    ''', (fecha,))
+    
+    turnos_existentes = cursor.fetchall()
+    
+    # Verificar superposición con turnos existentes
+    for turno in turnos_existentes:
+        turno_hora = turno[0]
+        # Convertir hora del turno existente a minutos
+        turno_mins = int(turno_hora.split(':')[0]) * 60 + int(turno_hora.split(':')[1])
+        turno_fin_mins = turno_mins + 40
+        
+        # Verificar si hay superposición
+        if not (hora_fin_mins <= turno_mins or hora_inicio_mins >= turno_fin_mins):
+            return False
+    
+    return True
+
+def eliminar_turno(turno_id):
+    cursor.execute('DELETE FROM turnos WHERE id = ?', (turno_id,))
+    conn.commit()
+
+
+
 # Interfaz de Streamlit
 st.title("Sistema Gestor de Pacientes - Consultorio Psicopedagógico")
 
-menu = st.sidebar.selectbox("Seleccione una opción", ["Registrar Paciente", "Lista de Pacientes", "Registrar Sesión"])
+menu = st.sidebar.selectbox(
+    "Seleccione una opción", 
+    ["Registrar Paciente", "Lista de Pacientes", "Registrar Sesión", "Gestión de Turnos"]
+)
 
 if menu == "Registrar Paciente":
     st.header("Registrar un nuevo paciente")
@@ -444,5 +518,151 @@ elif menu == "Registrar Sesión":
     else:
         st.warning("No hay pacientes registrados. Registre al menos un paciente antes de registrar una sesión.")
 
-# Cerrar la conexión
+
+elif menu == "Gestión de Turnos":
+    st.title("Gestión de Turnos")
+    
+    # Crear pestañas para separar la vista de turnos y el registro
+    tab1, tab2 = st.tabs(["📅 Ver Turnos", "➕ Registrar Turno"])  
+
+    if st.tabs == True :
+        st.rerun()
+
+    
+    with tab1:
+   
+        st.header("Calendario de Turnos")
+        
+        # Selector de mes y año
+        col1, col2 = st.columns(2)
+        with col1:
+            mes = st.selectbox("Mes", range(1, 13), datetime.now().month - 1)
+        with col2:
+            año = st.selectbox("Año", range(2024, 2026), 0)
+        
+        # Obtener todos los turnos del mes seleccionado
+        turnos_mes = obtener_turnos_mes(año, mes)
+        
+        # Crear un calendario mensual
+        import calendar
+        cal = calendar.monthcalendar(año, mes)
+        
+        # Crear una tabla para mostrar el calendario
+        st.markdown("### Calendario")
+        
+        # Encabezados de los días
+        dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+        
+        # Crear el calendario como una tabla HTML
+        tabla_html = f"""
+        <style>
+        .calendario {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+        .calendario th, .calendario td {{
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            height: 80px;
+            vertical-align: top;
+        }}
+        .calendario th {{
+            background-color: #f8f9fa;
+        }}
+        .turno {{
+            font-size: 0.8em;
+            margin: 2px;
+            padding: 2px;
+            background-color: #e7f3fe;
+            border-radius: 3px;
+        }}
+        </style>
+        <table class="calendario">
+        <tr>
+        """
+        
+        # Añadir encabezados
+        for dia in dias_semana:
+            tabla_html += f"<th>{dia}</th>"
+        tabla_html += "</tr>"
+        
+        # Organizar turnos por fecha
+        turnos_por_fecha = {}
+        for turno in turnos_mes:
+            fecha = turno[2]
+            if fecha not in turnos_por_fecha:
+                turnos_por_fecha[fecha] = []
+            turnos_por_fecha[fecha].append(turno)
+        
+        # Añadir las semanas
+        for semana in cal:
+            tabla_html += "<tr>"
+            for dia in semana:
+                if dia == 0:
+                    tabla_html += "<td></td>"
+                else:
+                    fecha = f"{año}-{str(mes).zfill(2)}-{str(dia).zfill(2)}"
+                    tabla_html += f"<td><div style='font-weight: bold;'>{dia}</div>"
+                    
+                    # Añadir turnos del día
+                    if fecha in turnos_por_fecha:
+                        for turno in turnos_por_fecha[fecha]:
+                            tabla_html += f"<div class='turno'>{turno[3]} - {turno[1]}</div>"
+                    
+                    tabla_html += "</td>"
+            tabla_html += "</tr>"
+        
+        tabla_html += "</table>"
+        st.markdown(tabla_html, unsafe_allow_html=True)
+        
+        # Mostrar lista detallada de turnos del mes
+        if turnos_mes:            
+            st.markdown("### Lista de Turnos del Mes")
+            for turno in turnos_mes:
+                with st.expander(f"{turno[2]} - {turno[3]} - {turno[1]}"):
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.write(f"**Nombre:** {turno[1]}")
+                    with col2:
+                        if st.button("🗑️ Cancelar", key=f"del_turno_{turno[0]}"):
+                            eliminar_turno(turno[0])
+                            st.success("Turno cancelado")
+                            st.rerun()
+    
+    with tab2:
+       
+        st.header("Registrar Nuevo Turno")
+        
+        # Formulario de registro de turno
+        nombre = st.text_input("Nombre")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            fecha = st.date_input("Fecha", min_value=datetime.today())
+        with col2:
+            # Crear lista de horarios disponibles (de 8:00 a 20:00)
+            horarios = []
+            hora_actual = datetime.strptime("08:00", "%H:%M")
+            hora_fin = datetime.strptime("20:00", "%H:%M")
+            
+            while hora_actual < hora_fin:
+                horarios.append(hora_actual.strftime("%H:%M"))
+                hora_actual = hora_actual + timedelta(minutes=40)
+            
+            hora = st.selectbox("Hora", horarios)
+        
+        if st.button("Registrar Turno"):
+            
+            if nombre and fecha and hora:
+                if verificar_disponibilidad(fecha, hora):
+                    agregar_turno(nombre, fecha, hora)
+                                         
+                    st.success("Turno registrado exitosamente")
+                else:
+                    st.error("El horario seleccionado no está disponible")
+            else:
+                st.warning("Por favor complete todos los campos requeridos")
+
+
 conn.close()
