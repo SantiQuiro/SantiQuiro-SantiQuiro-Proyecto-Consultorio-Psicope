@@ -168,12 +168,20 @@ def obtener_sesiones(paciente_id):
     ORDER BY fecha DESC
     ''', (paciente_id,))
     return cursor.fetchall()
+
+def actualizar_sesion(sesion_id, fecha, notas, asistio, pago, monto, numero_factura):
+    cursor.execute('''
+    UPDATE sesiones 
+    SET fecha = ?, notas = ?, asistio = ?, pago = ?, monto = ?, numero_factura = ?
+    WHERE id = ?
+    ''', (fecha, notas, asistio, pago, monto, numero_factura, sesion_id))
+    conn.commit()
+
 def eliminar_sesion(sesion_id):
     cursor.execute('DELETE FROM sesiones WHERE id = ?', (sesion_id,))
     conn.commit()
 
 
-                                    ### TURNOS ###
 def agregar_turno(nombre, fecha, hora):
     cursor.execute('''
     INSERT INTO turnos (nombre, fecha, hora)
@@ -442,27 +450,76 @@ elif menu == "Lista de Pacientes":
                         """, unsafe_allow_html=True)
                         
                         for sesion in sesiones:
-                            # Desempaquetar los valores de la sesión
                             sesion_id, _, fecha, notas, asistio, pago, monto, numero_factura = sesion
                             
                             st.markdown(f'<div class="session-container">', unsafe_allow_html=True)
-                            col1, col2 = st.columns([5, 1])
-                            with col1:
-                                st.markdown("**Fecha:**")
-                                st.write(fecha)
-                                if numero_factura:  # Número de factura
-                                    st.write(f"**Factura N°:** {numero_factura}")
-                                st.markdown("**Estado:**")
-                                st.write(f"✓ Asistió: {'Sí' if asistio else 'No'}")
-                                st.write(f"💰 Pagó: {'Sí' if pago else 'No'}")
-                                st.write(f"💵 Monto: ${monto}")
-                                st.markdown("**Notas:**")
-                                st.text_area("", notas, height=150, key=f"notas_sesion_{sesion_id}", disabled=True)
-                            with col2:
-                                if st.button("🗑️", key=f"del_session_{sesion_id}"):
-                                    eliminar_sesion(sesion_id)
-                                    st.success("Sesión eliminada correctamente")
-                                    st.rerun()
+                            
+                            # Verificar si esta sesión está en modo edición
+                            is_editing = st.session_state.get(f'editing_session_{sesion_id}', False)
+                            
+                            if is_editing:
+                                # Modo edición
+                                col1, col2 = st.columns([4, 1])
+                                with col1:
+                                    nueva_fecha = st.date_input(
+                                        "Fecha", 
+                                        datetime.strptime(fecha, '%Y-%m-%d').date(),
+                                        key=f"edit_fecha_{sesion_id}"
+                                    )
+                                    nuevo_asistio = st.checkbox("¿Asistió?", asistio, key=f"edit_asistio_{sesion_id}")
+                                    nuevo_pago = st.checkbox("¿Pagó?", pago, key=f"edit_pago_{sesion_id}")
+                                    nuevo_monto = st.number_input("Monto ($)", value=float(monto), min_value=0.0, 
+                                                                step=100.0, key=f"edit_monto_{sesion_id}")
+                                    nuevo_numero_factura = st.text_input("Número de Factura", 
+                                                                    value=numero_factura if numero_factura else "",
+                                                                    key=f"edit_factura_{sesion_id}")
+                                    nuevas_notas = st.text_area("Notas", notas, height=150, 
+                                                            key=f"edit_notas_{sesion_id}")
+                                
+                                with col2:
+                                    col3, col4 = st.columns(2)
+                                    with col3:
+                                        if st.button("💾", key=f"save_session_{sesion_id}"):
+                                            actualizar_sesion(
+                                                sesion_id, nueva_fecha, nuevas_notas, 
+                                                nuevo_asistio, nuevo_pago, nuevo_monto, 
+                                                nuevo_numero_factura
+                                            )
+                                            st.session_state[f'editing_session_{sesion_id}'] = False
+                                            st.success("Sesión actualizada")
+                                            st.rerun()
+                                    with col4:
+                                        if st.button("❌", key=f"cancel_edit_{sesion_id}"):
+                                            st.session_state[f'editing_session_{sesion_id}'] = False
+                                            st.rerun()
+                            else:
+                                # Modo visualización
+                                col1, col2 = st.columns([5, 1])
+                                with col1:
+                                    st.markdown("**Fecha:**")
+                                    st.write(fecha)
+                                    if numero_factura:
+                                        st.write(f"**Factura N°:** {numero_factura}")
+                                    st.markdown("**Estado:**")
+                                    st.write(f"✓ Asistió: {'Sí' if asistio else 'No'}")
+                                    st.write(f"💰 Pagó: {'Sí' if pago else 'No'}")
+                                    st.write(f"💵 Monto: ${monto}")
+                                    st.markdown("**Notas:**")
+                                    st.text_area("", notas, height=150, key=f"notas_sesion_{sesion_id}", 
+                                            disabled=True)
+                                
+                                with col2:
+                                    col3, col4 = st.columns(2)
+                                    with col3:
+                                        if st.button("✏️", key=f"edit_session_{sesion_id}"):
+                                            st.session_state[f'editing_session_{sesion_id}'] = True
+                                            st.rerun()
+                                    with col4:
+                                        if st.button("🗑️", key=f"del_session_{sesion_id}"):
+                                            eliminar_sesion(sesion_id)
+                                            st.success("Sesión eliminada")
+                                            st.rerun()
+                            
                             st.markdown('</div>', unsafe_allow_html=True)
                     else:
                         st.info("No hay sesiones registradas para este paciente")
@@ -470,17 +527,16 @@ elif menu == "Lista de Pacientes":
                     if st.button("❌ Cerrar Sesiones"):
                         st.session_state.viewing_sessions = None
                         st.rerun()
-
-    else:
-        st.warning("No se encontraron pacientes con los criterios de búsqueda especificados.")
-
+                    else:
+                        st.warning("No se encontraron pacientes con los criterios de búsqueda especificados.")
 
 elif menu == "Registrar Sesión":
     st.header("Registrar sesión para un paciente")
 
     pacientes = obtener_pacientes()
     if pacientes:
-        paciente_seleccionado = st.selectbox("Seleccione un paciente", [f"{p[1]} {p[2]}" for p in pacientes])
+        paciente_seleccionado = st.selectbox("Seleccione un paciente", 
+                                           [f"{p[1]} {p[2]}" for p in pacientes])
         paciente_id = [p[0] for p in pacientes if f"{p[1]} {p[2]}" == paciente_seleccionado][0]
         
         # Crear columnas para organizar mejor la interfaz
@@ -506,33 +562,108 @@ elif menu == "Registrar Sesión":
         sesiones = obtener_sesiones(paciente_id)
         
         if sesiones:
-            for sesion in sesiones:
-                # Desempaquetar los valores de la sesión
+            # Agregar filtros de búsqueda
+            col1, col2 = st.columns(2)
+            with col1:
+                filtro_fecha = st.date_input("Filtrar por fecha", None)
+            with col2:
+                filtro_pago = st.selectbox("Filtrar por estado de pago", 
+                                         ["Todos", "Pagados", "Pendientes"])
+            
+            # Aplicar filtros
+            sesiones_filtradas = sesiones
+            if filtro_fecha:
+                sesiones_filtradas = [s for s in sesiones_filtradas 
+                                    if datetime.strptime(s[2], '%Y-%m-%d').date() == filtro_fecha]
+            if filtro_pago != "Todos":
+                sesiones_filtradas = [s for s in sesiones_filtradas 
+                                    if (s[5] and filtro_pago == "Pagados") or 
+                                       (not s[5] and filtro_pago == "Pendientes")]
+            
+            # Mostrar total de deuda
+            total_deuda = sum([s[6] for s in sesiones_filtradas if not s[5]])
+            if total_deuda > 0:
+                st.error(f"💸 Deuda total pendiente: ${total_deuda:.2f}")
+            else:
+                st.success("✨ No hay deuda pendiente")
+            
+            for sesion in sesiones_filtradas:
                 sesion_id, _, fecha, notas, asistio, pago, monto, numero_factura = sesion
                 
-                with st.expander(f"Sesión del {fecha}"):
-                    col1, col2 = st.columns(2)
+                with st.expander(f"Sesión del {fecha} - {'✅ Pagada' if pago else '⏳ Pendiente'}"):
+                    # Verificar si esta sesión está en modo edición
+                    is_editing = st.session_state.get(f'editing_session_{sesion_id}', False)
                     
-                    with col1:
-                        st.write("**Estado de la sesión:**")
-                        st.write(f"✓ Asistió: {'Sí' if asistio else 'No'}")
-                        st.write(f"💰 Pagó: {'Sí' if pago else 'No'}")
-                        st.write(f"💵 Monto: ${monto}")
-                        if numero_factura:  # Número de factura
-                            st.write(f"📄 Factura N°: {numero_factura}")
+                    if is_editing:
+                        # Modo edición
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            nueva_fecha = st.date_input(
+                                "Fecha", 
+                                datetime.strptime(fecha, '%Y-%m-%d').date(),
+                                key=f"edit_fecha_{sesion_id}"
+                            )
+                            nuevo_asistio = st.checkbox("¿Asistió?", asistio, 
+                                                      key=f"edit_asistio_{sesion_id}")
+                            nuevo_pago = st.checkbox("¿Pagó?", pago, 
+                                                   key=f"edit_pago_{sesion_id}")
+                            nuevo_monto = st.number_input("Monto ($)", 
+                                                        value=float(monto), 
+                                                        min_value=0.0, 
+                                                        step=100.0,
+                                                        key=f"edit_monto_{sesion_id}")
+                            nuevo_numero_factura = st.text_input(
+                                "Número de Factura", 
+                                value=numero_factura if numero_factura else "",
+                                key=f"edit_factura_{sesion_id}"
+                            )
+                            nuevas_notas = st.text_area("Notas", notas, 
+                                                      height=150,
+                                                      key=f"edit_notas_{sesion_id}")
+                        
+                        with col2:
+                            if st.button("💾 Guardar", key=f"save_session_{sesion_id}"):
+                                actualizar_sesion(
+                                    sesion_id, nueva_fecha, nuevas_notas,
+                                    nuevo_asistio, nuevo_pago, nuevo_monto,
+                                    nuevo_numero_factura
+                                )
+                                st.session_state[f'editing_session_{sesion_id}'] = False
+                                st.success("Sesión actualizada")
+                                st.rerun()
+                            
+                            if st.button("❌ Cancelar", key=f"cancel_edit_{sesion_id}"):
+                                st.session_state[f'editing_session_{sesion_id}'] = False
+                                st.rerun()
                     
-                    with col2:
-                        st.write("**Notas:**")
-                        st.text_area("", notas, height=100, key=f"notas_sesion_{sesion_id}", disabled=True)
-                    
-                    if st.button("🗑️ Eliminar", key=f"del_session_{sesion_id}"):
-                        eliminar_sesion(sesion_id)
-                        st.success("Sesión eliminada correctamente")
-                        st.rerun()
+                    else:
+                        # Modo visualización
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            st.write("**Estado de la sesión:**")
+                            st.write(f"✓ Asistió: {'Sí' if asistio else 'No'}")
+                            st.write(f"💰 Pagó: {'Sí' if pago else 'No'}")
+                            st.write(f"💵 Monto: ${monto}")
+                            if numero_factura:
+                                st.write(f"📄 Factura N°: {numero_factura}")
+                            st.write("**Notas:**")
+                            st.text_area("", notas, height=100, 
+                                       key=f"notas_sesion_{sesion_id}", 
+                                       disabled=True)
+                        
+                        with col2:
+                            if st.button("✏️ Editar", key=f"edit_session_{sesion_id}"):
+                                st.session_state[f'editing_session_{sesion_id}'] = True
+                                st.rerun()
+                            
+                            if st.button("🗑️ Eliminar", key=f"del_session_{sesion_id}"):
+                                eliminar_sesion(sesion_id)
+                                st.success("Sesión eliminada")
+                                st.rerun()
         else:
             st.info("No hay sesiones registradas para este paciente")
 
-
+            
                                             ### TURNOS ###
 elif menu == "Gestión de Turnos":
     st.title("Gestión de Turnos")
