@@ -3,6 +3,11 @@ import sqlite3
 import pathlib
 from datetime import datetime,timedelta
 import pandas as pd
+import calendar
+
+# Conexión a la base de datos SQLite
+conn = sqlite3.connect('consultorio.db')
+cursor = conn.cursor()
 
 # Función para cargar CSS
 def load_css(file_path):
@@ -82,11 +87,6 @@ def calcular_edad(fecha_nacimiento):
         return None
     
 
-
-# Conexión a la base de datos SQLite
-conn = sqlite3.connect('consultorio.db')
-cursor = conn.cursor()
-
 # Creación de tablas si no existen (ahora incluye los nuevos campos)
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS pacientes (
@@ -128,6 +128,18 @@ CREATE TABLE IF NOT EXISTS turnos (
     nombre TEXT NOT NULL,
     fecha DATE NOT NULL,
     hora TIME NOT NULL
+)
+''')
+conn.commit()
+
+# Agregar tabla para gestionar días fijos
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS dias_fijos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    dia_semana INTEGER NOT NULL,  -- 0 = Lunes, 1 = Martes, etc.
+    hora TIME NOT NULL,
+    UNIQUE(nombre)
 )
 ''')
 conn.commit()
@@ -240,6 +252,58 @@ def eliminar_turno(turno_id):
     cursor.execute('DELETE FROM turnos WHERE id = ?', (turno_id,))
     conn.commit()
 
+def agregar_dia_fijo(nombre, dia_semana, hora):
+    """Asigna un día fijo de la semana a un paciente"""
+    try:
+        cursor.execute('''
+        INSERT INTO dias_fijos (nombre, dia_semana, hora)
+        VALUES (?, ?, ?)
+        ''', (nombre, dia_semana, hora))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+
+def obtener_dia_fijo(nombre):
+    """Obtiene el día fijo asignado a un paciente"""
+    cursor.execute('''
+    SELECT dia_semana, hora
+    FROM dias_fijos
+    WHERE nombre = ?
+    ''', (nombre,))
+    return cursor.fetchone()
+
+def eliminar_dia_fijo(nombre):
+    """Elimina la asignación de día fijo de un paciente"""
+    cursor.execute('DELETE FROM dias_fijos WHERE nombre = ?', (nombre,))
+    conn.commit()
+
+def verificar_disponibilidad_dia_fijo(nombre, fecha, hora):
+    """Verifica si el paciente puede tomar un turno en ese día y hora"""
+    dia_fijo = obtener_dia_fijo(nombre)
+    
+    if dia_fijo is None:
+        return True  # Si no tiene día fijo asignado, puede tomar cualquier turno
+    
+    dia_semana_turno = datetime.strptime(fecha, '%Y-%m-%d').weekday()
+    return dia_semana_turno == dia_fijo[0] and hora == dia_fijo[1]
+
+# Modificar la función de agregar turno para incluir la validación
+def agregar_turno(nombre, fecha, hora):
+    fecha_obj = datetime.strptime(fecha, '%Y-%m-%d') if isinstance(fecha, str) else fecha
+    
+    if verificar_disponibilidad_dia_fijo(nombre, fecha_obj.strftime('%Y-%m-%d'), hora):
+        if verificar_disponibilidad(fecha_obj.strftime('%Y-%m-%d'), hora):
+            cursor.execute('''
+            INSERT INTO turnos (nombre, fecha, hora)
+            VALUES (?, ?, ?)
+            ''', (nombre, fecha_obj.strftime('%Y-%m-%d'), hora))
+            conn.commit()
+            return True, "Turno registrado exitosamente"
+    else:
+        dia_fijo = obtener_dia_fijo(nombre)
+        dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        return False, f"Este paciente solo puede tomar turnos los {dias[dia_fijo[0]]} a las {dia_fijo[1]}"
 
 
 # Interfaz de Streamlit
@@ -247,7 +311,7 @@ st.title("Sistema Gestor de Pacientes - Consultorio Psicopedagógico")
 
 menu = st.sidebar.selectbox(
     "Seleccione una opción", 
-    ["Registrar Paciente", "Lista de Pacientes", "Registrar Sesión", "Gestión de Turnos"]
+    ["Registrar Paciente", "Lista de Pacientes", "Registrar Sesión", "Calendario de Turnos"]
 )
 
 if menu == "Registrar Paciente":
@@ -665,11 +729,11 @@ elif menu == "Registrar Sesión":
 
             
                                             ### TURNOS ###
-elif menu == "Gestión de Turnos":
-    st.title("Gestión de Turnos")
+elif menu == "Calendario de Turnos":
+    st.title("Calendario de Turnos")
     
     # Crear pestañas para separar la vista de turnos y el registro
-    tab1, tab2 = st.tabs(["📅 Ver Turnos", "➕ Registrar Turno"])  
+    tab1, tab2, tab3 = st.tabs(["📅 Ver Turnos", "➕ Registrar Turno", "⚙️ Configurar Días Fijos"])
 
     with tab1:
         st.header("Calendario de Turnos")
@@ -683,6 +747,10 @@ elif menu == "Gestión de Turnos":
         
         # Obtener todos los turnos del mes seleccionado
         turnos_mes = obtener_turnos_mes(año, mes)
+        
+        # Obtener los días fijos
+        cursor.execute('SELECT nombre, dia_semana, hora FROM dias_fijos ORDER BY dia_semana, hora')
+        dias_fijos = cursor.fetchall()
         
         # Crear un calendario mensual
         import calendar
@@ -718,6 +786,13 @@ elif menu == "Gestión de Turnos":
             background-color: #e7f3fe;
             border-radius: 3px;
         }}
+        .turno-fijo {{
+            font-size: 0.8em;
+            margin: 2px;
+            padding: 2px;
+            background-color: green;
+            border-radius: 3px;
+        }}
         </style>
         <table class="calendario">
         <tr>
@@ -736,6 +811,17 @@ elif menu == "Gestión de Turnos":
                 turnos_por_fecha[fecha] = []
             turnos_por_fecha[fecha].append(turno)
         
+        # Calcular los días fijos para el mes seleccionado
+        dias_fijos_mes = {}
+        for nombre, dia_semana, hora in dias_fijos:
+            # Iterar sobre todas las semanas del mes
+            for semana in cal:
+                if semana[dia_semana] != 0:  # Si el día existe en esta semana
+                    fecha = f"{año}-{str(mes).zfill(2)}-{str(semana[dia_semana]).zfill(2)}"
+                    if fecha not in dias_fijos_mes:
+                        dias_fijos_mes[fecha] = []
+                    dias_fijos_mes[fecha].append((nombre, hora))
+        
         # Añadir las semanas
         for semana in cal:
             tabla_html += "<tr>"
@@ -746,10 +832,15 @@ elif menu == "Gestión de Turnos":
                     fecha = f"{año}-{str(mes).zfill(2)}-{str(dia).zfill(2)}"
                     tabla_html += f"<td><div style='font-weight: bold;'>{dia}</div>"
                     
-                    # Añadir turnos del día
+                    # Añadir turnos regulares del día
                     if fecha in turnos_por_fecha:
                         for turno in turnos_por_fecha[fecha]:
                             tabla_html += f"<div class='turno'>{turno[3]} - {turno[1]}</div>"
+                    
+                    # Añadir turnos fijos del día
+                    if fecha in dias_fijos_mes:
+                        for nombre, hora in dias_fijos_mes[fecha]:
+                            tabla_html += f"<div class='turno-fijo'>📌 {hora} - {nombre}</div>"
                     
                     tabla_html += "</td>"
             tabla_html += "</tr>"
@@ -810,5 +901,46 @@ elif menu == "Gestión de Turnos":
         if st.session_state.turno_registrado:
             st.success("Turno registrado exitosamente")
             st.session_state.turno_registrado = False
+    
+    with tab3:
+        st.header("Configuración de Días Fijos")
+        
+        # Formulario para asignar día fijo
+        nombre_paciente = st.text_input("Nombre del Paciente")
+        dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        dia_seleccionado = st.selectbox("Día de la semana", dias_semana)
+        hora_fija = st.selectbox("Hora fija", horarios)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Asignar Día Fijo"):
+                if nombre_paciente and dia_seleccionado and hora_fija:
+                    if agregar_dia_fijo(nombre_paciente, dias_semana.index(dia_seleccionado), hora_fija):
+                        st.success(f"Día fijo asignado: {dia_seleccionado} a las {hora_fija}")
+                        st.rerun()
+                    else:
+                        st.error("Este paciente ya tiene un día fijo asignado")
+                else:
+                    st.warning("Complete todos los campos")
+        
+        with col2:
+            if st.button("Eliminar Día Fijo"):
+                if nombre_paciente:
+                    eliminar_dia_fijo(nombre_paciente)
+                    st.success("Día fijo eliminado correctamente")
+                    st.rerun()
+                else:
+                    st.warning("Ingrese el nombre del paciente")
+        
+        # Mostrar lista de días fijos asignados
+        st.subheader("Días Fijos Asignados")
+        cursor.execute('SELECT nombre, dia_semana, hora FROM dias_fijos ORDER BY dia_semana, hora')
+        dias_fijos = cursor.fetchall()
+        
+        if dias_fijos:
+            for paciente in dias_fijos:
+                st.write(f"**{paciente[0]}**: {dias_semana[paciente[1]]} a las {paciente[2]}")
+        else:
+            st.info("No hay días fijos asignados")
 
 conn.close()
