@@ -1,15 +1,273 @@
-*{
-color: aqua;
-}
-.st-key-o p{
-    color: blueviolet;
-}
-.calendario tbody tr th{
-    background-color: cadetblue;
-    color: white;
-
-}
-.calendario tbody td .turno{
-    background-color: green;
-    color: white;
-}
+:root {
+    /*COLORES*/
+  
+    /*PASTEL*/
+    --rosa-p: #f2848f;
+    --naranja-p: #f2b582;
+    --amarillo-p: #f2d069;
+    --verde-p: #a3d77e;
+    --azul-p: #53b2d5;
+  
+    /*FUERTE*/
+    --rosa-f: #f77885;
+    --naranja-f: #f7b178;
+    --amarillo-f: #f7d15e;
+    --verde-f: #9eea67;
+    --azul-f: #3abae9;
+  
+    /*APAGADOS*/
+    --rosa-a: #d8979d;
+    --rosa-a2: #673d42;
+    --naranja-a: #d8b497;
+    --amarillo-a: #d3bf83;
+    --verde-a: #a5c28e;
+    --azul-a: #6ca3b8;
+  
+    /*CLAROS*/
+    --rosa-c: #f8bfc3;
+    --naranja-c: #f8d8bf;
+    --amarillo-c: #f8e6b4;
+    --verde-c: #d0ecbc;
+    --azul-c: #a5d7ea;
+  
+    /*GRADIENTE ROSA*/
+    --rosa-0: #ff96bb;
+    --rosa-1: #ffadea;
+    --rosa-2: #ffc8ff;
+  
+    /*GRADIENTE ROSA OSCURA*/
+    --rosa-3: #ca606d;
+    --rosa-3-1: #8b434b;
+    --rosa-4: #a23d4c;
+    --rosa-5: #7c182e;
+    --rosa-6: #560012;
+  
+    /*OTROS*/
+    --rojo: #f46464;
+  
+    /*MARRON*/
+    --marron-c: #bfa5a6;
+    --marron-c2: #cab0b1;
+    --marron-mc: #efe2e6;
+    --marron-o: #574142;
+    --marron-o2: #755d5f;
+  
+    /*ESCALA DE GRIS*/
+    --gris: #ababab;
+    --gris-c: #b8b8b8;
+    --gris-mc: #e9e9e9;
+    --gris-o: #919191;
+    --gris-mo: #424242;
+    --negro: #242424;
+    --blanco: #fafafa;
+  }
+  
+  #stDecoration {
+    display: none;
+  }
+  .stAppToolbar {
+    display: none;
+  }
+  .st-emotion-cache-1li7dat {
+    display: none;
+  }
+  * {
+    color: var(--gris-mo);
+  }
+  
+  h1 {
+    display: flex;
+    align-items: center;
+    color: var(--gris-mo);
+  }
+  h2 {
+    display: flex;
+    align-items: center;
+    color: var(--gris-o);
+  }
+  
+  /*FONDO*/
+  .stMain {
+    background-color: #ca606d;
+  
+    background-image: repeating-radial-gradient(
+        circle at 0 0,
+        transparent 0,
+        #ca606d 15px
+      ),
+      repeating-linear-gradient(#ffffff55, #ffffff);
+  }
+  .st-emotion-cache-12fmjuu {
+    background-color: var(--rosa-5); /*HEADER*/
+    background-image: radial-gradient(circle at center center, #ffffff, #7c182e),
+      repeating-radial-gradient(
+        circle at center center,
+        #ffffff,
+        #ffffff,
+        15px,
+        transparent 30px,
+        transparent 15px
+      );
+    background-blend-mode: multiply;
+  }
+  /*FONDO DEL FORMULARIO*/
+  
+  .st-emotion-cache-0 {
+    background-color: var(--blanco);
+    border-radius: 16px;
+    padding: 0.5vw;
+  }
+  
+  /*BARRA LATERAL*/
+  .stSidebar {
+    background-color: var(--rosa-5);
+  
+    background-image: radial-gradient(circle at center center, #ffffff, #7c182e),
+      repeating-radial-gradient(
+        circle at center center,
+        #ffffff,
+        #ffffff,
+        15px,
+        transparent 30px,
+        transparent 15px
+      );
+    background-blend-mode: multiply;
+  }
+  /*EXPANDER*/
+  .stExpander .st-emotion-cache-1h9usn1 {
+    margin-right: 1vw;
+    background-color: var(--marron-c);
+    color: var(--blanco);
+  }
+  .stExpander .st-emotion-cache-0 p {
+    color: var(--negro);
+  }
+  .stExpander p {
+    color: var(--blanco);
+  }
+  .stExpander .stButton button p{
+  
+  color: var(--blanco);
+  }
+  /*COLUMNA FECHA DE NAC Y EDAD*/
+  .stColumn {
+    background-color: var(--blanco);
+  }
+  .stColumn .stMarkdown {
+    display: flex;
+    justify-content: center;
+  }
+  
+  /*TEXT INPUT*/
+  .stTextInput div {
+    background-color: var(--rosa-c);
+  }
+  .stTextInput p {
+    background-color: var(--blanco);
+  }
+  /*DATE INPUT*/
+  .stDateInput div div {
+    background-color: var(--rosa-c);
+  }
+  .stDateInput p {
+    background-color: var(--blanco);
+  }
+  /*TEXT AREA*/
+  .stTextArea div {
+    background-color: var(--rosa-c);
+  }
+  .stTextArea p {
+    background-color: var(--blanco);
+  }
+  /*BOTON*/
+  .stButton {
+    display: flex;
+    justify-content: center;
+  }
+  .stButton button {
+    background-color: var(--rosa-6);
+    color: var(--blanco);
+  }
+  button P{
+    color: var(--blanco);
+  }
+  .stButton button:hover {
+    background-color: var(--rojo);
+    color: var(--blanco);
+  }
+  /*NUMBER INPUT*/
+  .stNumberInput div{
+    background-color: var(--rosa-c);
+  }
+  .stNumberInput p{
+    background-color: var(--blanco);
+  }
+  .stNumberInput button{
+    background-color: var(--rosa-c);
+  }
+  
+  /*SELECTBOX DE LA SIDEBAR*/
+  .stSidebar .st-emotion-cache-0 {
+    background-color: var(--marron-mc);
+  }
+  
+  .stSidebar .stSelectbox .st-av {
+    border: #242424;
+    background-color: var(--marron-c); /*SELECT BOX BASE*/
+  }
+  ul li {
+    background-color: var(--negro); /*LISTA DE OPCIONES*/
+  }
+  .stSidebar .st-emotion-cache-s16by7 {
+    background-color: var(--marron-o2); /*ULTIMA OP SELECIONADA*/
+    color: var(--blanco);
+  }
+  .stSidebar .st-emotion-cache-s16by7:hover {
+    background-color: var(--marron-o); /*OP HOVER*/
+    color: var(--blanco);
+  }
+  
+  /*SELECT BOX NORMAL*/
+  .stSelectbox .st-av {
+    border: #242424;
+    background-color: var(--rosa-c); /*SELECT BOX BASE*/
+  }
+  /*LISTA DE OPCIONES*/
+  /* .st-hz ul {
+    background-color: var(--rosa-a); 
+  } */
+  /*ULTIMA OP SELECIONADA*/
+  .st-emotion-cache-s16by7 {
+    background-color: var(--rosa-4);   
+  } 
+  /*OP EN HOVER*/
+  .st-emotion-cache-s16by7 div{
+  color: var(--blanco);
+  }
+  .st-emotion-cache-s16by7:hover {
+    background-color: var(--rosa-3); 
+    color: var(--blanco);
+  }
+  
+  /*TABS*/
+  .stTabs p{
+  color: var(--negro);
+  }
+  .stTabs .stElementContainer button p{
+  color: var(--blanco)
+  }
+  
+  /*CALENDARIO*/
+  .calendario tbody tr th {
+    background-color: var(--amarillo-a);
+    color: var(--blanco);
+  }
+  
+  .calendario td {
+    background-color: var(--gris-mc);
+  }
+  .calendario tbody td .turno {
+    background-color: var(--naranja-p);
+    color: var(--blanco);
+  }
+  
