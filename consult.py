@@ -4,7 +4,13 @@ import pathlib
 from datetime import datetime,timedelta
 import pandas as pd
 import calendar
+from PIL import Image
 
+#CARGAR IMAGEN
+img = Image.open('./img/KENTI-SOLO.png')
+#FUNCION PARA PONER LA FOTO
+
+st.set_page_config(page_title='Consultorio', page_icon=img)
 # Función para cargar CSS
 def load_css(file_path):
     with open(file_path) as f:
@@ -13,6 +19,7 @@ def load_css(file_path):
 # Cargar CSS si es necesario
 css_path = pathlib.Path("estilo.css")
 load_css(css_path)
+
 
 def obtener_estadisticas_sesiones(paciente_id):
     """
@@ -244,12 +251,13 @@ def eliminar_turno(turno_id):
 
 
 # Interfaz de Streamlit
+
 st.title("Sistema Gestor de Pacientes - Consultorio Psicopedagógico")
 
 menu = st.sidebar.selectbox(
     "Seleccione una opción", 
     ["Registrar Paciente", "Lista de Pacientes", "Registrar Sesión", "Gestión de Turnos"]
-)
+    )
 
 if menu == "Registrar Paciente":
     st.header("Registrar un nuevo paciente")
@@ -264,6 +272,8 @@ if menu == "Registrar Paciente":
     with col2:
         edad = calcular_edad(fecha_nacimiento)
         if edad is not None:
+
+            st.write("")
             st.info(f"Edad: {edad} años")
     # fecha_nacimiento = st.date_input("Fecha de Nacimiento", min_value=datetime(1960, 1, 1), max_value=datetime.today())
     nombre_padre = st.text_input("Nombre del Padre/Tutor")
