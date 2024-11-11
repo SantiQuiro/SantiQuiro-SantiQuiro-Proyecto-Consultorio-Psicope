@@ -259,6 +259,8 @@ menu = st.sidebar.selectbox(
     ["Inicio","Registrar Paciente", "Lista de Pacientes", "Registrar Sesión", "Calendario de Turnos"]
     )
 if menu == "Inicio":
+    car= Image.open('./img/KENTI.png')
+    st.image(car,use_column_width=True,)
     # Carátula de Presentación
     st.title("Bienvenido")
     st.subheader("Gestor de Pacientes para Consultorio Psicopedagógico")
@@ -276,9 +278,88 @@ if menu == "Inicio":
     """)
 
     st.write("---")  # Línea divisoria
-    # Espacio para una foto (opcional)
-    car= Image.open('./img/KENTI.png')
-    st.image(car,use_column_width=True,)
+
+        # Selector de mes y año
+    col1, col2 = st.columns(2)
+    with col1:
+        mes = st.selectbox("Mes", range(1, 13), datetime.now().month-1 )            
+    with col2:
+        año = st.selectbox("Año", range(2024, 2026), 0)
+        
+ # Obtener todos los turnos del mes seleccionado
+    turnos_mes = obtener_turnos_mes(año, mes)
+        
+        # Crear un calendario mensual
+    cal = calendar.monthcalendar(año, mes)
+        
+        # Crear una tabla para mostrar el calendario
+    st.markdown("### Calendario de Turnos")
+        
+        # Encabezados de los días
+    dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+        # Crear el calendario como una tabla HTML
+    tabla_html = f"""
+    <style>
+    .calendario {{
+         width: 100%;
+        border-collapse: collapse;
+        }}
+    .calendario th, .calendario td {{
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+        height: 80px;
+        vertical-align: top;
+        }}
+    .calendario th {{
+        background-color: #f8f9fa;
+        }}
+    .turno {{
+        font-size: 0.8em;
+        margin: 2px;
+        padding: 2px;
+        background-color: #e7f3fe;
+        border-radius: 3px;
+        }}
+    </style>
+    <table class="calendario">
+    <tr>
+        """
+        
+        # Añadir encabezados
+    for dia in dias_semana:
+        tabla_html += f"<th>{dia}</th>"
+    tabla_html += "</tr>"
+        
+        # Organizar turnos por fecha
+    turnos_por_fecha = {}
+    for turno in turnos_mes:
+        fecha = turno[2]
+        if fecha not in turnos_por_fecha:
+            turnos_por_fecha[fecha] = []
+        turnos_por_fecha[fecha].append(turno)
+        
+        # Añadir las semanas
+    for semana in cal:
+        tabla_html += "<tr>"
+        for dia in semana:
+            if dia == 0:
+                tabla_html += "<td></td>"
+            else:
+                fecha = f"{año}-{str(mes).zfill(2)}-{str(dia).zfill(2)}"
+                tabla_html += f"<td><div style='font-weight: bold;'>{dia}</div>"
+                    
+                    # Añadir turnos del día
+                if fecha in turnos_por_fecha:
+                    for turno in turnos_por_fecha[fecha]:
+                        tabla_html += f"<div class='turno'>{turno[3]} - {turno[1]}</div>"
+                    
+                tabla_html += "</td>"
+        tabla_html += "</tr>"
+        
+    tabla_html += "</table>"
+    st.markdown(tabla_html, unsafe_allow_html=True)
 
     st.write("---")  # Línea divisoria
 
@@ -297,7 +378,7 @@ elif menu == "Registrar Paciente":
         if edad is not None:
 
             st.write("")
-            st.info(f"Edad: {edad} años")
+            st.error(f"Edad: {edad} años")
     # fecha_nacimiento = st.date_input("Fecha de Nacimiento", min_value=datetime(1960, 1, 1), max_value=datetime.today())
     nombre_padre = st.text_input("Nombre del Padre/Tutor")
     telefono_padre = st.text_input("Teléfono del Padre/Tutor")
@@ -713,7 +794,7 @@ elif menu == "Calendario de Turnos":
         # Selector de mes y año
         col1, col2 = st.columns(2)
         with col1:
-            mes = st.selectbox("Mes", range(1, 13), datetime.now().month )            
+            mes = st.selectbox("Mes", range(1, 13), datetime.now().month-1 )            
         with col2:
             año = st.selectbox("Año", range(2024, 2026), 0)
         
