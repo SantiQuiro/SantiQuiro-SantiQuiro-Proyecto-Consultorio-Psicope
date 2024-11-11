@@ -256,10 +256,33 @@ st.title("Sistema Gestor de Pacientes - Consultorio Psicopedagógico")
 
 menu = st.sidebar.selectbox(
     "Seleccione una opción", 
-    ["Registrar Paciente", "Lista de Pacientes", "Registrar Sesión", "Gestión de Turnos"]
+    ["Inicio","Registrar Paciente", "Lista de Pacientes", "Registrar Sesión", "Calendario de Turnos"]
     )
+if menu == "Inicio":
+    # Carátula de Presentación
+    st.title("Bienvenido")
+    st.subheader("Gestor de Pacientes para Consultorio Psicopedagógico")
 
-if menu == "Registrar Paciente":
+    st.markdown("""
+    Este sistema está diseñado para facilitar la gestión de turnos y datos de pacientes para el consultorio de psicopedagogía.
+    A continuación, se presentan las instrucciones de uso de la página:
+
+    1. **Registro de Pacientes**: Ingresa la información básica de cada paciente para llevar un control detallado.
+    2. **Gestión de Turnos**: Agrega y administra los turnos de los pacientes.
+    3. **Registro de Sesiones**: Documenta cada sesión con sus observaciones para tener un historial detallado.
+
+    ¡Gracias por confiar en nuestro sistema para una mejor organización!
+
+    """)
+
+    st.write("---")  # Línea divisoria
+    # Espacio para una foto (opcional)
+    car= Image.open('./img/KENTI.png')
+    st.image(car,use_column_width=True,)
+
+    st.write("---")  # Línea divisoria
+
+elif menu == "Registrar Paciente":
     st.header("Registrar un nuevo paciente")
     nombre = st.text_input("Nombre")
     apellido = st.text_input("Apellido")
@@ -325,8 +348,11 @@ elif menu == "Lista de Pacientes":
         df_filtrado = df_filtrado.sort_values('edad', ascending=False)
     else:  # Fecha de Nacimiento
         df_filtrado = df_filtrado.sort_values('fecha_nacimiento', ascending=False)
-
-    st.info(f"Total de pacientes: {len(df_filtrado)}")
+    
+    st.write('')
+    st.error(f"Total de pacientes: {len(df_filtrado)}")
+    st.write('')
+ 
 
     # Mostrar tabla de resumen [código existente sin cambios]
     if not df_filtrado.empty:
@@ -675,7 +701,7 @@ elif menu == "Registrar Sesión":
 
             
                                             ### TURNOS ###
-elif menu == "Gestión de Turnos":
+elif menu == "Calendario de Turnos":
     st.title("Gestión de Turnos")
     
     # Crear pestañas para separar la vista de turnos y el registro
@@ -846,6 +872,7 @@ elif menu == "Gestión de Turnos":
                     
                     if turnos_exitosos > 0:
                         st.success(f"Se registraron {turnos_exitosos} turnos exitosamente")
+                        st.rerun()
                     if turnos_fallidos > 0:
                         st.warning(f"No se pudieron registrar {turnos_fallidos} turnos por conflictos de horario")
                     st.session_state.turno_registrado = True
