@@ -390,8 +390,11 @@ elif menu == "Registrar Paciente":
     datos_escolares = st.text_area("Datos Escolares")
 
     if st.button("Guardar Paciente"):
-        agregar_paciente(nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, domicilio, motivo_consulta, datos_escolares)
-        st.success("Paciente registrado correctamente")
+        if nombre and apellido and dni and domicilio:
+            agregar_paciente(nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, domicilio, motivo_consulta, datos_escolares)
+            st.success("Paciente registrado correctamente")
+        else:
+            st.error("Por favor, complete todos los campos.")
 
 elif menu == "Lista de Pacientes":
     st.header("Lista de Pacientes")
