@@ -284,7 +284,7 @@ if menu == "Inicio":
     with col1:
         mes = st.selectbox("Mes", range(1, 13), datetime.now().month-1 )            
     with col2:
-        año = st.selectbox("Año", range(2024, 2026), 0)
+        año = st.selectbox("Año", range(2024, 2031), 0)
         
  # Obtener todos los turnos del mes seleccionado
     turnos_mes = obtener_turnos_mes(año, mes)
