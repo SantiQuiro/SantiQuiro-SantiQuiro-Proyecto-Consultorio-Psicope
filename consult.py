@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS pacientes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
     apellido TEXT NOT NULL,
-    dni TEXT NOT NULL,
+    dni INTEGER NOT NULL,
     fecha_nacimiento TEXT,
     nombre_padre TEXT,
     telefono_padre TEXT,
@@ -375,7 +375,14 @@ def main():
         st.header("Registrar un nuevo paciente")
         nombre = st.text_input("Nombre")
         apellido = st.text_input("Apellido")
-        dni = st.text_input("DNI")
+        dni = st.text_input("DNI")        
+        if dni:
+            if not dni.isdigit():
+                st.error("Por favor ingrese solo números en el DNI")
+                dni = ""
+            else:
+                dni = int(dni)
+
         domicilio = st.text_input("Domicilio")
         # Mostrar la fecha de nacimiento y la edad calculada
         col1, col2 = st.columns(2)
