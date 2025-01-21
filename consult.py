@@ -541,8 +541,7 @@ def main():
                         nuevo_dni = st.text_input("DNI", paciente['dni'])
                         nuevo_domicilio = st.text_input("Domicilio", paciente['domicilio'])
                         nueva_fecha = st.date_input("Fecha de Nacimiento", 
-                                                datetime.strptime(paciente['fecha_nacimiento'], '%Y-%m-%d').date() 
-                                                if paciente['fecha_nacimiento'] else None)
+                                                min_value=datetime(1960, 1, 1), max_value=datetime.today())                                             
                         nuevo_nombre_padre = st.text_input("Nombre del Padre", paciente['nombre_padre'])
                         nuevo_tel_padre = st.text_input("Teléfono del Padre", paciente['telefono_padre'])
                         nuevo_nombre_madre = st.text_input("Nombre de la Madre", paciente['nombre_madre'])
