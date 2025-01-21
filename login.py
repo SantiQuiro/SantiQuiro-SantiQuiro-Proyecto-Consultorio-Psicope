@@ -18,12 +18,12 @@ def init_auth_db():
     ''')
     
     # Check if admin user exists
-    cursor.execute('SELECT * FROM users WHERE username = ?', ('Mariel',))
+    cursor.execute('SELECT * FROM users WHERE username = ?', ('a',))
     if not cursor.fetchone():
         
-        hashed_password = hashlib.sha256('Nacho'.encode()).hexdigest()
+        hashed_password = hashlib.sha256('123'.encode()).hexdigest()
         cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', 
-                      ('Mariel', hashed_password))
+                      ('a', hashed_password))
     
     conn.commit()
     conn.close()
@@ -56,7 +56,6 @@ def login_required(func):
             if st.button("Iniciar Sesión"):
                 if verify_password(username, password):
                     st.session_state.authenticated = True
-                    st.success("Login exitoso!")
                     st.rerun()
                 else:
                     st.error("Usuario o contraseña incorrectos")
