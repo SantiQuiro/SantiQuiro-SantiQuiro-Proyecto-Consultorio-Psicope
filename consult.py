@@ -67,7 +67,8 @@ def obtener_pacientes_df():
     pacientes = cursor.fetchall()
     columnas = ['id', 'nombre', 'apellido', 'dni', 'fecha_nacimiento', 'nombre_padre', 
                 'telefono_padre', 'nombre_madre', 'telefono_madre', 'nombre_familiar', 
-                'telefono_familiar', 'domicilio', 'motivo_consulta', 'datos_escolares']
+                'telefono_familiar', 'domicilio', 'motivo_consulta', 'datos_escolares', 
+                'año_inicio_consulta']
     df = pd.DataFrame(pacientes, columns=columnas)
     return df
 
@@ -114,7 +115,8 @@ CREATE TABLE IF NOT EXISTS pacientes (
     telefono_familiar TEXT,
     domicilio TEXT,
     motivo_consulta TEXT,
-    datos_escolares TEXT
+    datos_escolares TEXT,
+    año_inicio_consulta INTEGER
 )
 ''')
 
@@ -144,14 +146,26 @@ CREATE TABLE IF NOT EXISTS turnos (
 conn.commit()
 
 # Funciones para manejar la base de datos
-def agregar_paciente(nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, domicilio, motivo_consulta, datos_escolares):
-    cursor.execute('INSERT INTO pacientes (nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, domicilio, motivo_consulta, datos_escolares) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                   (nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, domicilio, motivo_consulta, datos_escolares))
+def agregar_paciente(nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, 
+                     nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, 
+                     domicilio, motivo_consulta, datos_escolares, año_inicio_consulta):
+    cursor.execute('''
+    INSERT INTO pacientes (
+        nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, 
+        nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, 
+        domicilio, motivo_consulta, datos_escolares, año_inicio_consulta
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, 
+          nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, 
+          domicilio, motivo_consulta, datos_escolares, año_inicio_consulta))
     conn.commit()
 
 def obtener_pacientes():
     cursor.execute('SELECT * FROM pacientes')
     return cursor.fetchall()
+
+
+
 
 def actualizar_paciente(paciente_id, nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, domicilio, motivo_consulta, datos_escolares):
     cursor.execute('''
@@ -252,7 +266,6 @@ def eliminar_turno(turno_id):
     conn.commit()
 
 
-
 @login_required
 def main():
     st.title("Sistema Gestor de Pacientes - Consultorio Psicopedagógico")
@@ -265,8 +278,8 @@ def main():
 
                 #### INICIO ####
     if menu == "Inicio":
-        car= Image.open('./img/KENTI.png')
-        st.image(car,use_column_width=True,)
+        car= Image.open('./img/KENTI.png')        
+        st.image(car,use_container_width=True,)
         # Carátula de Presentación
         st.title("Bienvenido")
         st.subheader("Gestor de Pacientes para Consultorio Psicopedagógico")
@@ -290,7 +303,7 @@ def main():
         with col1:
             mes = st.selectbox("Mes", range(1, 13), datetime.now().month-1 )            
         with col2:
-            año = st.selectbox("Año", range(2024, 2031), 0)
+            año = st.selectbox("Año", range(2025, 2031), 0)
             
     # Obtener todos los turnos del mes seleccionado
         turnos_mes = obtener_turnos_mes(año, mes)
@@ -393,7 +406,10 @@ def main():
             if edad is not None:
 
                 st.write("")
-                st.error(f"Edad: {edad} años")
+                st.error(f"Edad: {edad} años")        
+        año_inicio_consulta = st.selectbox("Año de Inicio de Consulta", 
+                                           list(range(2021, datetime.now().year + 1)))
+
         # fecha_nacimiento = st.date_input("Fecha de Nacimiento", min_value=datetime(1960, 1, 1), max_value=datetime.today())
         nombre_padre = st.text_input("Nombre del Padre/Tutor")
         telefono_padre = st.text_input("Teléfono del Padre/Tutor")
@@ -406,7 +422,10 @@ def main():
 
         if st.button("Guardar Paciente"):
             if nombre and apellido and dni and domicilio:
-                agregar_paciente(nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, domicilio, motivo_consulta, datos_escolares)
+                agregar_paciente(nombre, apellido, dni, fecha_nacimiento,
+                                nombre_padre, telefono_padre, nombre_madre, 
+                                telefono_madre, nombre_familiar, telefono_familiar, 
+                                domicilio, motivo_consulta, datos_escolares, año_inicio_consulta)
                 st.success("Paciente registrado correctamente")
             else:
                 st.error("Por favor, complete todos los campos.")
@@ -422,52 +441,65 @@ def main():
         # Agregar columna de edad
         df_pacientes['edad'] = df_pacientes['fecha_nacimiento'].apply(calcular_edad)
         
-        # Barra de búsqueda
-        col1, col2 = st.columns([2, 1])
+        # Barra de búsqueda y filtros
+        col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
             search_term = st.text_input("🔍 Buscar paciente por nombre, apellido o DNI", "")
         with col2:
-            sort_by = st.selectbox("Ordenar por:", ["Apellido", "Nombre", "Edad", "Fecha de Nacimiento"])
+            sort_by = st.selectbox("Ordenar por:", ["Apellido", "Nombre", "Fecha de Nac.", "Año Inicio"])
+        with col3:
+            # Filtro de año de inicio de consulta
+            años_consulta = sorted(df_pacientes['año_inicio_consulta'].dropna().unique())
+            filtro_año = st.selectbox("Filtrar por Año de Inicio", 
+                                    ["Todos"] + [str(año) for año in años_consulta])
         
         # Filtrar y ordenar pacientes 
+        df_filtrado = df_pacientes.copy()
+        
+        # Aplicar filtro de búsqueda
         if search_term:
-            mask = (
-                df_pacientes['nombre'].str.contains(search_term, case=False, na=False) |
-                df_pacientes['apellido'].str.contains(search_term, case=False, na=False) |
-                df_pacientes['dni'].str.contains(search_term, case=False, na=False)
-            )
-            df_filtrado = df_pacientes[mask]
-        else:
-            df_filtrado = df_pacientes
-
+            df_filtrado = df_filtrado[
+                df_filtrado['nombre'].str.contains(search_term, case=False, na=False) |
+                df_filtrado['apellido'].str.contains(search_term, case=False, na=False) |
+                df_filtrado['dni'].astype(str).str.contains(search_term, case=False, na=False)
+            ]
+        
+        # Aplicar filtro de año de inicio
+        if filtro_año != "Todos":
+            df_filtrado = df_filtrado[df_filtrado['año_inicio_consulta'] == int(filtro_año)]
+        
         # Ordenar pacientes
         if sort_by == "Apellido":
             df_filtrado = df_filtrado.sort_values('apellido')
         elif sort_by == "Nombre":
             df_filtrado = df_filtrado.sort_values('nombre')
-        elif sort_by == "Edad":
-            df_filtrado = df_filtrado.sort_values('edad', ascending=False)
-        else:  # Fecha de Nacimiento
+        elif sort_by == "Fecha de Nac.":
             df_filtrado = df_filtrado.sort_values('fecha_nacimiento', ascending=False)
+        elif sort_by == "Año Inicio":
+            df_filtrado = df_filtrado.sort_values('año_inicio_consulta', ascending=False)
         
         st.write('')
         st.error(f"Total de pacientes: {len(df_filtrado)}")
         st.write('')
-    
 
-        # Mostrar tabla de resumen [código existente sin cambios]
+        # Mostrar tabla de resumen
         if not df_filtrado.empty:
             tabla_resumen = pd.DataFrame({
                 'Nombre Completo': df_filtrado['nombre'] + " " + df_filtrado['apellido'],
-                'DNI': df_filtrado['dni'],
+                'DNI': df_filtrado['dni'].astype(str),
                 'Edad': df_filtrado['edad'].apply(lambda x: f"{x} años" if pd.notnull(x) else "N/A"),
                 'Fecha Nac.': df_filtrado['fecha_nacimiento'],
-                'Tel. Padre': df_filtrado['telefono_padre'],
-                'Tel. Madre': df_filtrado['telefono_madre']
+                'Año Inicio': df_filtrado['año_inicio_consulta'].astype(str),
+                'Tel. Padre': df_filtrado['telefono_padre'].fillna("Sin datos"),
+                'Tel. Madre': df_filtrado['telefono_madre'].fillna("Sin datos")
             })
+            
+            pd.options.display.float_format = '{:.0f}'.format
 
 
             st.dataframe(tabla_resumen, use_container_width=True)
+
+   
 
             # Lista de pacientes con detalles expandibles
             for _, paciente in df_filtrado.iterrows():
@@ -817,7 +849,7 @@ def main():
             with col1:
                 mes = st.selectbox("Mes", range(1, 13), datetime.now().month-1 )            
             with col2:
-                año = st.selectbox("Año", range(2024, 2031), 0)
+                año = st.selectbox("Año", range(2025, 2031), 0)
             
             # Obtener todos los turnos del mes seleccionado
             turnos_mes = obtener_turnos_mes(año, mes)
