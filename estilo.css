@@ -160,6 +160,11 @@ color: var(--blanco);
   justify-content: center;
 }
 
+/* ELEMENT TOOL */
+.st-emotion-cache-1clt8w9 {
+display: none;
+}
+
 /*TEXT INPUT*/
 .stTextInput div {
   background-color: var(--rosa-c);
@@ -275,3 +280,5 @@ color: var(--blanco);
   background-color: var(--naranja-p);
   color: var(--blanco);
 }
+
+
