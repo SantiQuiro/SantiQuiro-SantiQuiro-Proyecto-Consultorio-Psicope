@@ -68,7 +68,7 @@ def obtener_pacientes_df():
     columnas = ['id', 'nombre', 'apellido', 'dni', 'fecha_nacimiento', 'nombre_padre', 
                 'telefono_padre', 'nombre_madre', 'telefono_madre', 'nombre_familiar', 
                 'telefono_familiar', 'domicilio', 'motivo_consulta', 'datos_escolares', 
-                'año_inicio_consulta']
+                'año_inicio_consulta','telefono_paciente','obra_social','numero_afiliado','diagnostico']
     df = pd.DataFrame(pacientes, columns=columnas)
     return df
 
@@ -116,7 +116,11 @@ CREATE TABLE IF NOT EXISTS pacientes (
     domicilio TEXT,
     motivo_consulta TEXT,
     datos_escolares TEXT,
-    año_inicio_consulta INTEGER
+    año_inicio_consulta INTEGER,
+    telefono_paciente INTEGRER,
+    obra_social TEXT,
+    numero_afiliado INTEGRER,
+    diagnostico TEXT         
 )
 ''')
 
@@ -148,16 +152,18 @@ conn.commit()
 # Funciones para manejar la base de datos
 def agregar_paciente(nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, 
                      nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, 
-                     domicilio, motivo_consulta, datos_escolares, año_inicio_consulta):
+                     domicilio, motivo_consulta, datos_escolares, 
+                     año_inicio_consulta,telefono_paciente,obra_social,numero_afiliado,diagnostico):
     cursor.execute('''
     INSERT INTO pacientes (
         nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, 
         nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, 
-        domicilio, motivo_consulta, datos_escolares, año_inicio_consulta
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        domicilio, motivo_consulta, datos_escolares, año_inicio_consulta, telefono_paciente, obra_social, numero_afiliado, diagnostico )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (nombre, apellido, dni, fecha_nacimiento, nombre_padre, telefono_padre, 
           nombre_madre, telefono_madre, nombre_familiar, telefono_familiar, 
-          domicilio, motivo_consulta, datos_escolares, año_inicio_consulta))
+          domicilio, motivo_consulta, datos_escolares,
+          año_inicio_consulta,telefono_paciente,obra_social,numero_afiliado, diagnostico))
     conn.commit()
 
 def obtener_pacientes():
@@ -264,6 +270,9 @@ def verificar_disponibilidad(fecha, hora_consulta):
 def eliminar_turno(turno_id):
     cursor.execute('DELETE FROM turnos WHERE id = ?', (turno_id,))
     conn.commit()
+
+
+
 
 
 @login_required
@@ -385,10 +394,22 @@ def main():
 
                     #### REGISTRAR PACIENTES ####
     elif menu == "Registrar Paciente":
+        obras_sociales = [
+                "Ninguna",
+                "Prensa",
+                "Galeno",
+                "OSDE",
+                "Swiss Medical",
+                "Medife",
+                "PAMI",
+                "Sancor Salud",
+                "Subsidio de Salud",
+                "Otra"]
+
         st.header("Registrar un nuevo paciente")
-        nombre = st.text_input("Nombre")
-        apellido = st.text_input("Apellido")
-        dni = st.text_input("DNI")        
+        nombre = st.text_input("Nombre *")
+        apellido = st.text_input("Apellido *")
+        dni = st.text_input("DNI *")        
         if dni:
             if not dni.isdigit():
                 st.error("Por favor ingrese solo números en el DNI")
@@ -411,24 +432,38 @@ def main():
                                            list(range(2021, datetime.now().year + 1)))
 
         # fecha_nacimiento = st.date_input("Fecha de Nacimiento", min_value=datetime(1960, 1, 1), max_value=datetime.today())
+        telefono_paciente = st.text_input("Teléfono del Paciente")
         nombre_padre = st.text_input("Nombre del Padre/Tutor")
         telefono_padre = st.text_input("Teléfono del Padre/Tutor")
         nombre_madre = st.text_input("Nombre de la Madre/Tutora")
         telefono_madre = st.text_input("Teléfono de la Madre/Tutora")
         nombre_familiar = st.text_input("Nombre de Otro Familiar")
         telefono_familiar = st.text_input("Teléfono del Familiar")
+        obra_social = st.selectbox("Seleccione una obra social:", obras_sociales)
+        if obra_social != "Ninguna":            
+            if obra_social == "Otra":
+                col1, col2 = st.columns(2)
+                with col1:                
+                        obra_social = st.text_input("Ingrese la Obra Social")
+                with col2:
+                    numero_afiliado = st.text_input("Numero de Afiliado")
+            else:
+                numero_afiliado = st.text_input("Numero de Afiliado")
+
         motivo_consulta = st.text_area("Motivo de Consulta")
         datos_escolares = st.text_area("Datos Escolares")
+        diagnostico = st.text_input("Diagnostico del Paciente")
 
         if st.button("Guardar Paciente"):
             if nombre and apellido and dni and domicilio:
                 agregar_paciente(nombre, apellido, dni, fecha_nacimiento,
                                 nombre_padre, telefono_padre, nombre_madre, 
                                 telefono_madre, nombre_familiar, telefono_familiar, 
-                                domicilio, motivo_consulta, datos_escolares, año_inicio_consulta)
+                                domicilio, motivo_consulta, datos_escolares,
+                                año_inicio_consulta,telefono_paciente,obra_social,numero_afiliado,diagnostico)
                 st.success("Paciente registrado correctamente")
             else:
-                st.error("Por favor, complete todos los campos.")
+                st.error("Por favor, complete todos los campos obligatorios")
 
 
             #### LISTA DE PACIENTES ####
@@ -479,7 +514,7 @@ def main():
             df_filtrado = df_filtrado.sort_values('año_inicio_consulta', ascending=False)
         
         st.write('')
-        st.error(f"Total de pacientes: {len(df_filtrado)}")
+        st.write(f"Total de pacientes: {len(df_filtrado)}")
         st.write('')
 
         # Mostrar tabla de resumen
@@ -489,9 +524,8 @@ def main():
                 'DNI': df_filtrado['dni'].astype(str),
                 'Edad': df_filtrado['edad'].apply(lambda x: f"{x} años" if pd.notnull(x) else "N/A"),
                 'Fecha Nac.': df_filtrado['fecha_nacimiento'],
-                'Año Inicio': df_filtrado['año_inicio_consulta'].astype(str),
-                'Tel. Padre': df_filtrado['telefono_padre'].fillna("Sin datos"),
-                'Tel. Madre': df_filtrado['telefono_madre'].fillna("Sin datos")
+                'Año de Inicio': df_filtrado['año_inicio_consulta'].astype(str),
+
             })
             
             pd.options.display.float_format = '{:.0f}'.format
@@ -509,32 +543,41 @@ def main():
                 
                 with st.expander(f"📋 {paciente['nombre']} {paciente['apellido']} - DNI: {paciente['dni']}"):
                     # Primera fila: Información general y estadísticas
-                    col1, col2, col3 = st.columns(3)
-                    
+                    col1, col2 = st.columns(2)
+
                     with col1:
-                        st.markdown("**Información Personal**")
+                        st.subheader("Información Personal")
                         st.write(f"Fecha Nac.: {paciente['fecha_nacimiento']}")
                         st.write(f"Edad: {paciente['edad']} años")
-                        st.write(f"Domicilio: {paciente['domicilio']}")
-                    
+                        st.write(f"Domicilio: {paciente['domicilio']}")                        
+                        st.write(f"Obra Social: {paciente['obra_social']} N°: {paciente['numero_afiliado']}")                        
+                        st.write(f"Diagnostico: {paciente['diagnostico']}")              
+                                          
                     with col2:
-                        st.markdown("**Información de Contacto**")
+                        st.subheader("Información de Contacto")
                         st.write(f"Padre/Tutor: {paciente['nombre_padre']}")
                         st.write(f"Tel. Padre: {paciente['telefono_padre']}")
                         st.write(f"Madre/Tutora: {paciente['nombre_madre']}")
                         st.write(f"Tel. Madre: {paciente['telefono_madre']}")
-                    
-                    with col3:
-                        st.markdown("**Estadísticas de Sesiones**")
+                        st.write(f"Tel. Paciente: {paciente['telefono_paciente']}")
+
+                    st.markdown("---")
+
+                    st.subheader("Estadísticas de Sesiones")
+                    st.write(f"Año de inicio: {paciente['año_inicio_consulta']}")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
                         st.write(f"Total Sesiones: {stats['total_sesiones']}")
+                    with col2:
                         st.write(f"✅ Sesiones Asistidas: {stats['sesiones_asistidas']}")
+                    with col3:
                         st.write(f"💰 Sesiones Pagadas: {stats['sesiones_pagadas']}")
-                        if stats['deuda_total'] > 0:
-                            st.error(f"💸 Deuda Total: ${stats['deuda_total']:.2f}")
-                        else:
-                            st.success("✨ Sin deuda pendiente")
-                        if ultima_sesion:
-                            st.write(f"Última sesión: {ultima_sesion}")
+                    if stats['deuda_total'] > 0:
+                        st.error(f"💸 Deuda Total: ${stats['deuda_total']:.2f}")
+                    else:
+                        st.success("✨ Sin deuda pendiente")
+                    if ultima_sesion:
+                        st.write(f"Última sesión: {ultima_sesion}")
 
                     # Segunda fila: Detalles clínicos
                     st.markdown("---")
