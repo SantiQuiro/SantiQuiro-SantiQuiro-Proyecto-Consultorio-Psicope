@@ -29,6 +29,7 @@
   --amarillo-c: #f8e6b4;
   --verde-c: #d0ecbc;
   --azul-c: #a5d7ea;
+  --azul-c2: #a9d0e0;
 
   /*GRADIENTE ROSA*/
   --rosa-0: #ff96bb;
@@ -151,6 +152,34 @@ display: none;
 
 color: var(--blanco);
 }
+/* /* REMOCION DEL <span> / */
+div.st-emotion-cache-1lvxfs7.e121c1cl2 span {
+  display: none;
+}
+
+/* / TITULO INFORMACION PERSONAL / */
+div.st-emotion-cache-1lvxfs7.e121c1cl2 [id="2d7fff05"] {
+  display: flex;
+  justify-content: center;
+  font-size: 25px;
+  /* / border: 2px solid blue; / */
+}
+
+/* / TITULO INFORMACION DE CONTACTO / */
+div.st-emotion-cache-1lvxfs7.e121c1cl2 [id="733f9966"] {
+  display: flex;
+  font-size: 25px;
+  justify-content: center;
+  /* / border: 2px solid blue; / */
+}
+
+/* / TITULO ESTADISTICA DE SESIONES / */
+div.st-emotion-cache-1lvxfs7.e121c1cl2 h3[id="9af8d0f9"] {
+  display: flex;
+  justify-content: center;
+  /* / border: 2px solid blue; / */
+}
+
 /*COLUMNA FECHA DE NAC Y EDAD*/
 .stColumn {
   background-color: var(--blanco);
@@ -266,11 +295,16 @@ color: var(--negro);
 .stTabs .stElementContainer button p{
 color: var(--blanco);
 }
-
 /*CALENDARIO*/
+
+.calendario tr td{
+border: 2px solid var(--gris-o);
+}
+
 .calendario tbody tr th {
   background-color: var(--amarillo-a);
   color: var(--blanco);
+  border: 2px solid var(--gris-mo);
 }
 
 .calendario td {
@@ -279,6 +313,68 @@ color: var(--blanco);
 .calendario tbody td .turno {
   background-color: var(--naranja-p);
   color: var(--blanco);
+  background-attachment: fixed;
+}
+.calendario{
+  border: 3px solid var(--gris-mo);
+}
+
+/* FILTRO POR ACTIVIDAD */
+.st-key-act label{
+  display: flex;
+  margin-left: 0.5vw;
+  width: 4vw;
+  min-width: fit-content;
+  justify-content: center;
+
+}
+.st-key-act label p{
+ font-size: 123%;
+
+}
+.st-key-act div{
+  display: flex;
+  margin-left: 0.5vw;
+  margin-right: 0.5vw;
+
+}
+
+/* DIV CONTENEDOR DE TOTAL PACIENTES */
+.totalContainer {
+
+  margin-right: 100vw;
+}
+/* DIV TOTAL PACIENTES */
+.totalPacientes {
+  /* border: 2px solid red; */
+  display: flex;
+  color:var(--blanco);
+  justify-content: center;
+  background: var(--rosa-a2);
+  border-radius: 10px;
+  margin-left: 0.5vw;
+  margin-right: 0.5vw;
+  padding: 1.5vh 0 1.5vh 0;
+
 }
 
 
+/*
+ DIV CONTENEDOR DEL SUCCESS
+.successContainer {
+ 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+ DIV SUCCESS
+.divSuccess {
+  display: flex;
+  background: var(--verde-c);
+  padding: 2.5vh 0 2.5vh 0vw;
+  border-radius: 10px;
+  width: 200px;
+  justify-content: center;
+  align-items: center;
+} 
+*/
