@@ -273,6 +273,28 @@ def eliminar_turno(turno_id):
     conn.commit()
 
 
+
+def eliminar_turnos_por_nombre(nombre):
+    """
+    Elimina todos los turnos de un paciente específico
+    """
+    cursor.execute('DELETE FROM turnos WHERE nombre = ?', (nombre,))
+    conn.commit()
+    return cursor.rowcount  # Retorna el número de turnos eliminados
+
+def obtener_nombres_pacientes_con_turnos(año, mes):
+    """
+    Obtiene una lista única de nombres de pacientes que tienen turnos en el mes seleccionado
+    """
+    cursor.execute('''
+    SELECT DISTINCT nombre
+    FROM turnos
+    WHERE strftime('%Y', fecha) = ? AND strftime('%m', fecha) = ?
+    ORDER BY nombre
+    ''', (str(año), str(mes).zfill(2)))
+    return [row[0] for row in cursor.fetchall()]
+
+
 obras_sociales = [
                 "Ninguna",
                 "Prensa",
@@ -909,13 +931,12 @@ def main():
             else:
                 st.info("No hay sesiones registradas para este paciente")
 
-                
                                                 ### TURNOS ###
     elif menu == "Calendario de Turnos":
         st.title("Gestión de Turnos")
-        
+
         # Crear pestañas para separar la vista de turnos y el registro
-        tab1, tab2 = st.tabs(["📅 Ver Turnos", "➕ Registrar Turno"])  
+        tab1, tab2, tab3 = st.tabs(["📅 Ver Turnos", "➕ Registrar Turno", "🗑️ Eliminar Turnos"])
 
         with tab1:
             st.header("Calendario de Turnos")
@@ -1021,27 +1042,17 @@ def main():
             
             # Formulario de registro de turno
             nombre = st.text_input("Nombre")
-            
-            # Checkbox para seleccionar turnos recurrentes
             es_recurrente = st.checkbox("Turno recurrente", value=False)
             
             col1, col2 = st.columns(2)
             with col1:
                 if es_recurrente:
-                    # Si es recurrente, mostrar selector de día de la semana
                     dia_semana = st.selectbox("Día de la semana", 
                                             ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"])
-                    # Obtener todas las fechas del mes para el día seleccionado
                     primer_dia = datetime(año, mes, 1)
-                    ultimo_dia =datetime(año, mes, calendar.monthrange(año, mes)[1])
+                    ultimo_dia = datetime(año, mes, calendar.monthrange(año, mes)[1])
                     
-                    # Mapear nombres de días a números (0 = Lunes, 4 = Viernes)
-                    dias_map = {
-                        "Lunes": 0, "Martes": 1, "Miércoles": 2,
-                        "Jueves": 3, "Viernes": 4
-                    }
-                    
-                    # Generar todas las fechas del mes para el día seleccionado
+                    dias_map = {"Lunes": 0, "Martes": 1, "Miércoles": 2, "Jueves": 3, "Viernes": 4}
                     fechas_dia = []
                     fecha_actual = primer_dia
                     while fecha_actual <= ultimo_dia:
@@ -1049,28 +1060,24 @@ def main():
                             fechas_dia.append(fecha_actual.date())
                         fecha_actual += timedelta(days=1)
                 else:
-                    # Si no es recurrente, mostrar selector de fecha única
                     fecha = st.date_input("Fecha", min_value=datetime.today())
             
             with col2:
-                # Crear lista de horarios disponibles (de 8:00 a 20:00)
                 horarios = []
                 hora_actual = datetime.strptime("08:00", "%H:%M")
                 hora_fin = datetime.strptime("20:00", "%H:%M")
-                
                 while hora_actual < hora_fin:
                     horarios.append(hora_actual.strftime("%H:%M"))
-                    hora_actual = hora_actual + timedelta(minutes=40)
-                
+                    hora_actual += timedelta(minutes=40)
                 hora = st.selectbox("Hora", horarios)
-
+            
+            # Inicializar estado si no existe
             if 'turno_registrado' not in st.session_state:
                 st.session_state.turno_registrado = False
             
             if st.button("Registrar Turno"):
                 if nombre and hora:
                     if es_recurrente:
-                        # Registrar turnos para todas las fechas del día seleccionado
                         turnos_exitosos = 0
                         turnos_fallidos = 0
                         for fecha_dia in fechas_dia:
@@ -1081,13 +1088,11 @@ def main():
                                 turnos_fallidos += 1
                         
                         if turnos_exitosos > 0:
-                            st.success(f"Se registraron {turnos_exitosos} turnos exitosamente")
-                            st.rerun()
+                            st.session_state.turno_registrado = True
                         if turnos_fallidos > 0:
                             st.warning(f"No se pudieron registrar {turnos_fallidos} turnos por conflictos de horario")
-                        st.session_state.turno_registrado = True
+                        st.rerun()
                     else:
-                        # Registrar turno único
                         if verificar_disponibilidad(fecha, hora):
                             agregar_turno(nombre, fecha, hora)
                             st.session_state.turno_registrado = True
@@ -1099,9 +1104,81 @@ def main():
             
             # Mostrar el mensaje de éxito después de la recarga
             if st.session_state.turno_registrado:
-                if not es_recurrente:
-                    st.success("Turno registrado exitosamente")
+                st.success("Turno registrado exitosamente")
                 st.session_state.turno_registrado = False
+        
+        with tab3:
+            st.header("Eliminar Turnos por Paciente")
+            
+            # Selector de mes y año
+            col1, col2 = st.columns(2)
+            with col1:
+                mes = st.selectbox("Mes", range(1, 13), datetime.now().month-1, key="mes_eliminar")
+            with col2:
+                año = st.selectbox("Año", range(2025, 2031), 0, key="año_eliminar")
+
+            # Obtener lista de pacientes con turnos en el mes seleccionado
+            pacientes_con_turnos = obtener_nombres_pacientes_con_turnos(año, mes)
+            
+            if pacientes_con_turnos:
+                # Selector de paciente
+                paciente_seleccionado = st.selectbox(
+                    "Seleccione el paciente cuyos turnos desea eliminar",
+                    pacientes_con_turnos
+                )
+                
+                # Mostrar turnos del paciente seleccionado
+                cursor.execute('''
+                    SELECT fecha, hora
+                    FROM turnos
+                    WHERE nombre = ? AND strftime('%Y', fecha) = ? AND strftime('%m', fecha) = ?
+                    ORDER BY fecha, hora
+                ''', (paciente_seleccionado, str(año), str(mes).zfill(2)))
+                
+                turnos_paciente = cursor.fetchall()
+                
+                if turnos_paciente:
+                    st.write("Turnos programados para", paciente_seleccionado)
+                    for fecha, hora in turnos_paciente:
+                        st.write(f"- {fecha} a las {hora}")
+                    
+                    # Opciones de eliminación
+                    opcion_eliminar = st.radio(
+                        "¿Qué turnos desea eliminar?",
+                        ["Todos los turnos", "Seleccionar turnos específicos"]
+                    )
+                    
+                    if opcion_eliminar == "Todos los turnos":
+                        if st.button("Eliminar Todos los Turnos", type="primary"):
+                            turnos_eliminados = eliminar_turnos_por_nombre(paciente_seleccionado)
+                            st.session_state['mensaje_exito'] = f"Se eliminaron {turnos_eliminados} turnos del paciente {paciente_seleccionado}"
+                            st.rerun()
+                    else:
+                        # Permitir selección múltiple de turnos
+                        turnos_a_eliminar = st.multiselect(
+                            "Seleccione los turnos a eliminar",
+                            [(fecha, hora) for fecha, hora in turnos_paciente],
+                            format_func=lambda x: f"{x[0]} a las {x[1]}"
+                        )
+                        
+                        if turnos_a_eliminar and st.button("Eliminar Turnos Seleccionados", type="primary"):
+                            for fecha, hora in turnos_a_eliminar:
+                                cursor.execute('''
+                                    DELETE FROM turnos 
+                                    WHERE nombre = ? AND fecha = ? AND hora = ?
+                                ''', (paciente_seleccionado, fecha, hora))
+                            conn.commit()
+                            st.session_state['mensaje_exito'] = f"Se eliminaron {len(turnos_a_eliminar)} turnos seleccionados"
+                            st.rerun()
+            else:
+                st.info(f"No hay turnos registrados para el mes {mes}/{año}")
+
+            # Mostrar mensaje de éxito si existe
+            if 'mensaje_exito' in st.session_state:
+                st.success(st.session_state['mensaje_exito'])
+                del st.session_state['mensaje_exito']  # Limpiar el mensaje después de mostrarlo
+                        
+    
 if __name__ == "__main__":
     main()
 conn.close()
