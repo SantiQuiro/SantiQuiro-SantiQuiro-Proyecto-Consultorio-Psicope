@@ -295,6 +295,29 @@ def obtener_nombres_pacientes_con_turnos(año, mes):
     return [row[0] for row in cursor.fetchall()]
 
 
+def num_txt(mes_n):
+    meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    if 1 <= mes_n <= 12:
+        return meses[mes_n - 1]
+
+
+def obtener_ultimas_sesiones(paciente_id, limite=None):
+    """
+    Obtiene las últimas sesiones de un paciente, con opción de límite
+    """
+    query = '''
+    SELECT id, paciente_id, fecha, notas, asistio, pago, monto, numero_factura 
+    FROM sesiones 
+    WHERE paciente_id = ?
+    ORDER BY fecha DESC
+    '''
+    if limite:
+        query += f' LIMIT {limite}'
+    
+    cursor.execute(query, (paciente_id,))
+    return cursor.fetchall()
+
 obras_sociales = [
                 "Ninguna",
                 "Prensa",
@@ -310,8 +333,7 @@ obras_sociales = [
 
 @login_required
 def main():
-    st.title("Sistema Gestor de Pacientes - Consultorio Psicopedagógico")
-       
+    st.title("Sistema Gestor de Pacientes")
     menu = st.sidebar.selectbox(
         "Seleccione una opción", 
         ["Inicio", "Registrar Paciente", "Lista de Pacientes", "Registrar Sesión", "Calendario de Turnos"]
@@ -324,22 +346,26 @@ def main():
         st.image(car,use_container_width=True,)
         # Carátula de Presentación
         st.title("Bienvenido")
-        st.subheader("Gestor de Pacientes para Consultorio Psicopedagógico")
 
         st.markdown("""
         Este sistema está diseñado para facilitar la gestión de turnos y datos de pacientes para el consultorio de psicopedagogía.
         A continuación, se presentan las instrucciones de uso de la página:
 
-        1. **Registro de Pacientes**: Ingresa la información básica de cada paciente para llevar un control detallado.
-        2. **Gestión de Turnos**: Agrega y administra los turnos de los pacientes.
-        3. **Registro de Sesiones**: Documenta cada sesión con sus observaciones para tener un historial detallado.
+        Para navegar por la pagina haga click en la flecha del costado izquierdo para que se le habra un menu desplegable 
+
+        1. **Inicio**: La seccion actual en la que se muestra el Calendario y el Logo.
+        2. **Registrar Pacientes**: Ingresa la información básica de cada paciente para llevar un control detallado.
+        3. **Lista de Pacientes**: Tabla con todos los pacientes registrados para acceder a la informacion de cada uno.
+        4. **Registrar Sesiones**: Documenta cada sesión con sus observaciones para tener un historial detallado.
+        5. **Calendario de Turnos**: Agrega y administra los turnos de los pacientes.
 
         ¡Gracias por confiar en nuestro sistema para una mejor organización!
 
         """)
 
         st.write("---")  # Línea divisoria
-
+        st.markdown("### Calendario de Turnos")
+        st.write("Selecione el mes y el año")
             # Selector de mes y año
         col1, col2 = st.columns(2)
         with col1:
@@ -354,7 +380,7 @@ def main():
         cal = calendar.monthcalendar(año, mes)
             
             # Crear una tabla para mostrar el calendario
-        st.markdown("### Calendario de Turnos")
+
             
             # Encabezados de los días
         dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
@@ -423,73 +449,75 @@ def main():
         st.markdown(tabla_html, unsafe_allow_html=True)
 
         st.write("---")  # Línea divisoria
-
+      
 
                     #### REGISTRAR PACIENTES ####
     elif menu == "Registrar Paciente":
     
 
         st.header("Registrar un nuevo paciente")
-        nombre = st.text_input("Nombre *")
-        apellido = st.text_input("Apellido *")
-        dni = st.text_input("DNI *")        
-        if dni:
-            if not dni.isdigit():
-                st.error("Por favor ingrese solo números en el DNI")
-                dni = ""
-            else:
-                dni = int(dni)
+        with st.form(key="myform", clear_on_submit=True):
+            nombre = st.text_input("Nombre *")
+            apellido = st.text_input("Apellido *")
+            dni = st.text_input("DNI *")        
+            if dni:
+                if not dni.isdigit():
+                    st.error("Por favor ingrese solo números en el DNI")
+                    dni = ""
+                else:
+                    dni = int(dni)
 
-        domicilio = st.text_input("Domicilio *")
-        # Mostrar la fecha de nacimiento y la edad calculada
-        col1, col2 = st.columns(2)
-        with col1:
-            fecha_nacimiento = st.date_input("Fecha de Nacimiento", min_value=datetime(1960, 1, 1), max_value=datetime.today())
-        with col2:
-            edad = calcular_edad(fecha_nacimiento)
-            if edad is not None:
+            domicilio = st.text_input("Domicilio *")
+            # Mostrar la fecha de nacimiento y la edad calculada
+            col1, col2 = st.columns(2)
+            with col1:
+                fecha_nacimiento = st.date_input("Fecha de Nacimiento *", min_value=datetime(1960, 1, 1), max_value=datetime.today())
+            with col2:
+                edad = calcular_edad(fecha_nacimiento)
+                if edad is not None:
 
-                st.write("")
-                st.error(f"Edad: {edad} años")        
-        año_inicio_consulta = st.selectbox("Año de Inicio de Consulta", 
-                                           list(range(2021, datetime.now().year + 1)))
-       
-        telefono_paciente = st.text_input("Teléfono del Paciente")
-        nombre_padre = st.text_input("Nombre del Padre/Tutor")
-        telefono_padre = st.text_input("Teléfono del Padre/Tutor")
-        nombre_madre = st.text_input("Nombre de la Madre/Tutora")
-        telefono_madre = st.text_input("Teléfono de la Madre/Tutora")
-        nombre_familiar = st.text_input("Nombre de Otro Familiar")
-        telefono_familiar = st.text_input("Teléfono del Familiar")
-        obra_social = st.selectbox("Seleccione una obra social:", obras_sociales)
-        if obra_social != "Ninguna":                   
-            if obra_social == "Otra":
-                col1, col2 = st.columns(2)
-                with col1:                
-                        obra_social = st.text_input("Ingrese la Obra Social")
-                with col2:
+                    st.write("")
+                    st.error(f"Edad: {edad} años")        
+            año_inicio_consulta = st.selectbox("Año de Inicio de Consulta", 
+                                            list(range(2021, datetime.now().year + 1)))
+        
+            telefono_paciente = st.text_input("Teléfono del Paciente")
+            nombre_padre = st.text_input("Nombre del Padre/Tutor")
+            telefono_padre = st.text_input("Teléfono del Padre/Tutor")
+            nombre_madre = st.text_input("Nombre de la Madre/Tutora")
+            telefono_madre = st.text_input("Teléfono de la Madre/Tutora")
+            nombre_familiar = st.text_input("Nombre de Otro Familiar")
+            telefono_familiar = st.text_input("Teléfono del Familiar")
+            obra_social = st.selectbox("Seleccione una obra social:", obras_sociales)
+            if obra_social != "Ninguna":                   
+                if obra_social == "Otra":
+                    col1, col2 = st.columns(2)
+                    with col1:                
+                            obra_social = st.text_input("Ingrese la Obra Social")
+                    with col2:
+                        numero_afiliado = st.text_input("Numero de Afiliado")
+                else:
                     numero_afiliado = st.text_input("Numero de Afiliado")
             else:
-                numero_afiliado = st.text_input("Numero de Afiliado")
-        else:
-            numero_afiliado = ""    
-        motivo_consulta = st.text_area("Motivo de Consulta")
-        datos_escolares = st.text_area("Datos Escolares")
-        diagnostico = st.text_input("Diagnostico del Paciente")
+                numero_afiliado = ""    
+            motivo_consulta = st.text_area("Motivo de Consulta")
+            datos_escolares = st.text_area("Datos Escolares")
+            diagnostico = st.text_input("Diagnostico del Paciente")
 
-        actividad = st.checkbox(" Activo ", value=True)
-
-        if st.button("Guardar"):
-            if nombre and apellido and dni and domicilio:
-                agregar_paciente(nombre, apellido, dni, fecha_nacimiento,
-                                nombre_padre, telefono_padre, nombre_madre, 
-                                telefono_madre, nombre_familiar, telefono_familiar, 
-                                domicilio, motivo_consulta, datos_escolares,
-                                año_inicio_consulta,telefono_paciente,obra_social,
-                                numero_afiliado,diagnostico, actividad)
-                st.success("Paciente registrado correctamente")
-            else:
-                st.error("Por favor, complete todos los campos obligatorios")
+            actividad = st.checkbox(" Activo ", value=True)
+            
+            if st.form_submit_button("Guardar"):
+                if nombre and apellido and dni and domicilio:
+                    agregar_paciente(nombre, apellido, dni, fecha_nacimiento,
+                                    nombre_padre, telefono_padre, nombre_madre, 
+                                    telefono_madre, nombre_familiar, telefono_familiar, 
+                                    domicilio, motivo_consulta, datos_escolares,
+                                    año_inicio_consulta,telefono_paciente,obra_social,
+                                    numero_afiliado,diagnostico, actividad)
+                    st.success("Paciente registrado correctamente")
+                    
+                else:
+                    st.error("Por favor, complete todos los campos obligatorios")
 
 
             #### LISTA DE PACIENTES ####
@@ -701,9 +729,11 @@ def main():
 
                                 # Mostrar sesiones
                     if st.session_state.get('viewing_sessions') == paciente['id']:
-                        st.markdown("### Sesiones del Paciente")
-                        sesiones = obtener_sesiones(paciente['id'])
+                        st.markdown("### Ultimas Sesiones del Paciente")
                         
+                        mostrar_todas = st.session_state.get(f'show_all_sessions_{paciente["id"]}', False)
+                        sesiones = obtener_ultimas_sesiones(paciente['id'], None if mostrar_todas else 3)
+        
                         if sesiones:
                             st.markdown("""
                             <style>
@@ -940,7 +970,7 @@ def main():
 
         with tab1:
             st.header("Calendario de Turnos")
-
+            st.write("Selecione el mes y el año")
             # Selector de mes y año
             col1, col2 = st.columns(2)
             with col1:
@@ -955,7 +985,8 @@ def main():
             cal = calendar.monthcalendar(año, mes)
             
             # Crear una tabla para mostrar el calendario
-            st.markdown("### Calendario")
+            
+            st.subheader(num_txt(mes))
             
             # Encabezados de los días
             dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]

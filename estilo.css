@@ -231,6 +231,25 @@ button P{
   background-color: var(--rojo);
   color: var(--blanco);
 }
+
+
+
+.stFormSubmitButton{
+  display: flex;
+  justify-content: center;
+}
+.stFormSubmitButton button{
+  background-color: var(--rosa-6);
+  color: var(--blanco);
+}
+.stFormSubmitButton p{
+  color: var(--blanco)
+}
+
+.stFormSubmitButton button:hover {
+  background-color: var(--rojo);
+  color: var(--blanco);
+}
 /*NUMBER INPUT*/
 .stNumberInput div{
   background-color: var(--rosa-c);
@@ -357,6 +376,17 @@ border: 2px solid var(--gris-o);
   padding: 1.5vh 0 1.5vh 0;
 
 }
+
+ul li {
+  background-color: var(--rosa-f);
+  border-radius: 10px;
+  width: 25%;
+}
+
+* {
+  color: var(--negro);
+}
+
 
 
 /*

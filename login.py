@@ -18,12 +18,12 @@ def init_auth_db():
     ''')
     
     # Check if admin user exists
-    cursor.execute('SELECT * FROM users WHERE username = ?', ('a',))
+    cursor.execute('SELECT * FROM users WHERE username = ?', ('Mariel',))
     if not cursor.fetchone():
         
-        hashed_password = hashlib.sha256('123'.encode()).hexdigest()
+        hashed_password = hashlib.sha256('kenti'.encode()).hexdigest()
         cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', 
-                      ('a', hashed_password))
+                      ('Mariel', hashed_password))
     
     conn.commit()
     conn.close()
